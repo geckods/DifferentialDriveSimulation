@@ -2602,7 +2602,7 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 
 
 int main(int argc, char* argv[]) {
-  bool get_results = true;
+  bool get_results = false;
  //get_results = false;
   if(get_results)
   {

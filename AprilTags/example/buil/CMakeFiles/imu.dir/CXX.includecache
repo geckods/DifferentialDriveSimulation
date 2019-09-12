@@ -1,0 +1,40 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/Serial.cpp
+fcntl.h
+-
+termios.h
+-
+stdlib.h
+-
+iostream
+-
+sstream
+-
+unistd.h
+-
+Serial.h
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/Serial.h
+
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/Serial.h
+string
+-
+
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/imu.cpp
+iostream
+-
+string
+-
+stdio.h
+-
+math.h
+-
+Serial.h
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/Serial.h
+

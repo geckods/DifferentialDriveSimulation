@@ -1,0 +1,8 @@
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/install/strip.dir
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/install/local.dir
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/install.dir
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/list_install_components.dir
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/rebuild_cache.dir
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/edit_cache.dir
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/imu.dir
+/home/shreyansh/DifferentialDriveSimulation/AprilTags/example/buil/CMakeFiles/apriltags_demo.dir
