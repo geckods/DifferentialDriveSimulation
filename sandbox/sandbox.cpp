@@ -256,7 +256,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 						}
 
 						image = imread(address);						
-						cvtColor(image, image_gray, CV_BGR2GRAY);
+						cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
   						if(first_iter){
 						    bots[0].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
 						    for(int i = 1;i<bots.size();i++){
@@ -1586,7 +1586,7 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 							}
 
 							image = imread(address);						
-							cvtColor(image, image_gray, CV_BGR2GRAY);
+							cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 	  						if(first_iter){	  						
 	  							for(int i = 0; i < bots.size(); i++)
 	  							{
@@ -2602,7 +2602,7 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 
 
 int main(int argc, char* argv[]) {
-  bool get_results = true;
+  bool get_results = false;
  //get_results = false;
   if(get_results)
   {
@@ -2621,7 +2621,7 @@ int main(int argc, char* argv[]) {
   cv::Mat image_gray;
   
   //image = imread("../Maps/Basic.png");
-  //cvtColor(image, image_gray, CV_BGR2GRAY);
+  //cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 
   int robotCount = 4;  
   cout<<"Enter the number of robots: ";
@@ -2686,7 +2686,7 @@ int main(int argc, char* argv[]) {
   while (true){    
   	total_iterations++;
     image = imread("../Maps/Basic.png");
-  	cvtColor(image, image_gray, CV_BGR2GRAY);
+  	cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
 
    /* if(first_iter){
       bots[0].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration

@@ -312,7 +312,7 @@ void AprilInterfaceAndVideoCapture::processImage(cv::Mat& image, cv::Mat& image_
   //      m_cap.grab();
   //      m_cap.retrieve(image);
   // detect April tags (requires a gray scale image)
-  cv::cvtColor(image, image_gray, CV_BGR2GRAY);
+  cv::cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
   double t0;
   if (m_timing) {
     t0 = tic();
