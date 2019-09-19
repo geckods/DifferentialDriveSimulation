@@ -76,25 +76,26 @@ void PathPlannerGrid::initializeBactrackSearchMatrix(){
 //you should not call initialize, overlay, inversion grid on a shared map, or call if you 
 //know what you are doing
 void PathPlannerGrid::shareMap(AprilInterfaceAndVideoCapture &testbed, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  
+  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x    //Seems redundant since setRobotCellCoordinates always returns 1 in current implementation.
     return;
   //double px = world_grid[start_grid_x][start_grid_y].tot_x/world_grid[start_grid_x][start_grid_y].tot;
   //double py = world_grid[start_grid_x][start_grid_y].tot_y/world_grid[start_grid_x][start_grid_y].tot;
   double px = start_grid_x;
-  double py = start_grid_y;
+  double py = start_grid_y;   //initializes local variables from global variables that were just initialized.
   double ax, ay;
-  testbed.pixelToWorld(px, py, ax, ay);
+  testbed.pixelToWorld(px, py, ax, ay);     //Converts from pixels to grid coordinates (I think).
   for(int i = 0; i < bots.size(); i++)
   {
-    if(i==robot_tag_id)continue;
-    bots[i].setRobotCellCoordinates(testbed.detections);
+    if(i==robot_tag_id)continue;            // Skip the calling bot.
+    bots[i].setRobotCellCoordinates(testbed.detections); // Set start grid for all other bots.
     //px = world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot_x/world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot;
     //py = world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot_y/world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot;
-    px = bots[i].start_grid_x;
+    px = bots[i].start_grid_x;      
     py = bots[i].start_grid_y;
-    double bx, by;
+    double bx, by;                          // Stores the value of the other bot's position
     testbed.pixelToWorld(px, py, bx, by);
-    if(distance(ax, ay, bx, by)>=comm_dist) continue;
+    if(distance(ax, ay, bx, by)>=comm_dist) continue;     // If too far away, we skip this bot.
     for(int r = 0; r < rcells; r++)
     {
       for(int c = 0; c < ccells; c++)
@@ -118,9 +119,10 @@ void PathPlannerGrid::shareMap(AprilInterfaceAndVideoCapture &testbed, vector<Pa
         }    
       }
     }
-    world_grid[bots[i].start_grid_x][bots[i].start_grid_y].bot_presence = make_pair(1, i);
+    world_grid[bots[i].start_grid_x][bots[i].start_grid_y].bot_presence = make_pair(1, i);    //Marking bot on the grid.
   }
 }
+
 void PathPlannerGrid::gridInversion(const PathPlannerGrid &planner,int rid){//invert visitable and non visitable cells for the given rid
   rcells = planner.rcells;
   ccells = planner.ccells;
@@ -133,30 +135,21 @@ void PathPlannerGrid::gridInversion(const PathPlannerGrid &planner,int rid){//in
       {
         if(planner.world_grid[i][j].steps > 0/* && planner.world_grid[i][j].r_id > 0*//*==rid*/){//the cell was visitable by given rid
           world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
-          world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
-          world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
-          world_grid[i][j].tot = planner.world_grid[i][j].tot;
         }
         else
           world_grid[i][j].steps = 1;
-          world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
-          world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
-          world_grid[i][j].tot = planner.world_grid[i][j].tot;
       }
       else //in case it's a vornoi partition based implementation
       {
         if(planner.world_grid[i][j].steps > 0 && planner.world_grid[i][j].voronoi_id == planner.robot_tag_id/* && planner.world_grid[i][j].r_id > 0*//*==rid*/){//the cell was visitable by given rid
           world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
-          world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
-          world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
-          world_grid[i][j].tot = planner.world_grid[i][j].tot;
         }
         else
           world_grid[i][j].steps = 1;
-          world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
-          world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
-          world_grid[i][j].tot = planner.world_grid[i][j].tot;
       }
+      world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
+      world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
+      world_grid[i][j].tot = planner.world_grid[i][j].tot;
     }
 }
 

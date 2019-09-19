@@ -5,6 +5,7 @@
 #include <utility>
 #include <stack>
 #include <cstring>
+
 //the cell empty criteria is an adjustable parameter as well
 class PathPlannerGrid{
   public:

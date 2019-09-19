@@ -1,0 +1,7 @@
+//controllers.cpp
+
+void PurePursuitController::calculateMinimumTurnRadius();//finds turn radius in axle length scale
+double PurePursuitController::distance(double x1,double y1,double x2,double y2);
+int PurePursuitController::findNextPointByPursuit(robot_pose &rp,vector<pt> &path);
+int PurePursuitController::findNextPointByPathIndex(robot_pose &rp, vector<pt> &path);
+pair<int,int> PurePursuitController::computeStimuli(robot_pose &rp,vector<pt> &path, int &next_point_index_in_path);
