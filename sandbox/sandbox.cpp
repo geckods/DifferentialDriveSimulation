@@ -1,7 +1,11 @@
 #include "aprilvideointerface.h"
 #include <unistd.h>
+//In the C and C++ programming languages, unistd.h is the name of the header file that provides access to the POSIX operating system API.
+//On Unix-like systems, the interface defined by unistd.h is typically made up largely of system call wrapper functions such as fork, pipe and I/O primitives (read, write, close, etc.). 
 #include "pathplanners.h"
+//Has the class PathPlannerGrid, which stores the grid representation and robot details. I believe there's one for each robot.
 #include "controllers.h"
+//contains a class called PurePursuitController, which doesn't seem to be used here. Not sure atm.
 #include <iostream>
 #include <fstream>
 // For Arduino: serial port access class
@@ -11,155 +15,168 @@ using namespace std;
 using namespace cv;
 
 struct bot_config{
-  PathPlannerGrid plan; 
-  int id;
-  robot_pose pose;
-  //using intializer list allows intializing variables with non trivial contructor
-  //assignment would not help if there is no default contructor with no arguments
-  bot_config(int cx,int cy, int thresh,vector<vector<nd> > &tp):plan(PathPlannerGrid(cx,cy,thresh,tp)){
-    id = -1;//don't forget to set the id
-    //below line would first call plan PathPlannerGrid constructor with no argument and then replace lhs variables with rhs ones
-    //plan = PathPlannerGrid(cx,cy,thresh,tp);
-  }
+	PathPlannerGrid plan;//stores grid representation
+	int id;//the robot's ID
+	robot_pose pose;//the robot's pose - contains x,y and omega, which is up/left/down/right
 
-  void init(){
-    plan.start_grid_x = plan.start_grid_y = -1;
-    plan.robot_id = -1;
-  }
+	//using intializer list allows intializing variables with non trivial contructor
+	//assignment would not help if there is no default contructor with no arguments
+
+	//this initializer list basically means that the aggregated PathPlannerGrid called "plan" is initialised with the PathPlannerGrid constructor, which takes cx,cy,thresh,tp
+	bot_config(int cx,int cy, int thresh,vector<vector<nd> > &tp):plan(PathPlannerGrid(cx,cy,thresh,tp)){
+		id = -1;//don't forget to set the id
+		//below line would first call plan PathPlannerGrid constructor with no argument and then replace lhs variables with rhs ones
+		//plan = PathPlannerGrid(cx,cy,thresh,tp);
+
+		//afaik the line above does the same thing as the initializer list in the constructor
+	}
+
+	void init(){
+		//initialized some plan variables
+		plan.start_grid_x = plan.start_grid_y = -1;
+		plan.robot_id = -1;
+	}
 };
 
 
 int check_deadlock(vector<bot_config> &bots, int index)
 {
-  cout<<"\nChecking deadlock presence:\n"<<endl;
-  for(int i = 0; i < bots.size(); i++)
-  {
-    bots[i].plan.deadlock_check_counter = 0;
-  }
-  int clear_flag = 0;
-  int target_cell_bot_id = -1;
 
-  while(!clear_flag)
-  {
-    cout<<"index: "<<index<<endl;
-    cout<<"present cells: "<<bots[index].plan.start_grid_x<<" "<<bots[index].plan.start_grid_y<<endl;
-    int r = bots[index].plan.target_grid_cell.first;
-    int c = bots[index].plan.target_grid_cell.second;
-    cout<<"r,c :"<<r<<" "<<c<<endl;
-    cout<<"next target index: "<<bots[index].plan.next_target_index<<endl;
-    cout<<"path size: "<<bots[index].plan.path_points.size()<<endl;
-    if(bots[index].plan.world_grid[r][c].bot_presence.first == 1 && bots[index].plan.world_grid[r][c].bot_presence.second != bots[index].plan.robot_tag_id)
-    {
-      target_cell_bot_id = bots[index].plan.world_grid[r][c].bot_presence.second;
-      bots[target_cell_bot_id].plan.deadlock_check_counter++;
-      if(bots[target_cell_bot_id].plan.deadlock_check_counter > 1)
-      {
-      	  cout<<"first detected bot: \n"<<target_cell_bot_id<<endl;
-      	  for(int i = 0; i < bots.size(); i++)//for repllaning the bot whose path has been least 
-		  {
-		    bots[i].plan.deadlock_check_counter = 0;
-		  }		  
-		  int min_called_bot_id = target_cell_bot_id;
-		  int min_calling_number = 100000000;
-		  while(1)
-		  {
-		    r = bots[target_cell_bot_id].plan.target_grid_cell.first;
-		    c = bots[target_cell_bot_id].plan.target_grid_cell.second;
-		    if(bots[target_cell_bot_id].plan.deadlock_check_counter>0)break;
-		    bots[target_cell_bot_id].plan.deadlock_check_counter++;
-		    
-		    if(bots[target_cell_bot_id].plan.deadlock_replanned <min_calling_number)
-		    {
-		    	min_calling_number = bots[target_cell_bot_id].plan.deadlock_replanned;
-		    	min_called_bot_id=target_cell_bot_id;
-		    }
-		    target_cell_bot_id = bots[target_cell_bot_id].plan.world_grid[r][c].bot_presence.second;
-		  }
-		  target_cell_bot_id = min_called_bot_id;
-		  bots[target_cell_bot_id].plan.deadlock_replanned++;
-		  cout<<"replanned_bot: "<<target_cell_bot_id<<endl;
-        break;
-      }
-      else if(bots[target_cell_bot_id].plan.wait_to_plan == 1)
-      {
-      	cout<<"Wait to plan!\n";
-      	clear_flag = 1;
-      	break;
-      }
-      else if(/*bots[target_cell_bot_id].plan.status == 2 || bots[target_cell_bot_id].plan.coverage_completed==1*/bots[target_cell_bot_id].plan.next_target_index==bots[target_cell_bot_id].plan.path_points.size())// to check if the said target bot has covered all its point and is in no position to move
-      {
-      	cout<<"here!\n";
-        break;
-      }
-     
-      index = target_cell_bot_id;
-      continue;
-    }
-    else
-    {
-      clear_flag = 1;
-    }
+	//to check if the index'th bot is in deadlock
 
-  }
-  if(clear_flag == 1)
-  {
-    return -1;
-  }
-  else
-  {
-    return target_cell_bot_id;
-  }
+	cout<<"\nChecking deadlock presence:\n"<<endl;
+	for(int i = 0; i < bots.size(); i++)
+	{
+		//setting the deadlock_check_counter to 0 for all bots
+		bots[i].plan.deadlock_check_counter = 0;
+	}
+
+	int clear_flag = 0;
+	//when clear flag is set, it means no deadlock has occured
+
+	int target_cell_bot_id = -1;
+
+	while(!clear_flag)
+	{
+		cout<<"index: "<<index<<endl;
+		cout<<"present cells: "<<bots[index].plan.start_grid_x<<" "<<bots[index].plan.start_grid_y<<endl;
+		int r = bots[index].plan.target_grid_cell.first;
+		int c = bots[index].plan.target_grid_cell.second;
+		cout<<"r,c :"<<r<<" "<<c<<endl;
+		cout<<"next target index: "<<bots[index].plan.next_target_index<<endl;
+		cout<<"path size: "<<bots[index].plan.path_points.size()<<endl;
+		if(bots[index].plan.world_grid[r][c].bot_presence.first == 1 && bots[index].plan.world_grid[r][c].bot_presence.second != bots[index].plan.robot_tag_id)
+		{
+			target_cell_bot_id = bots[index].plan.world_grid[r][c].bot_presence.second;
+			bots[target_cell_bot_id].plan.deadlock_check_counter++;
+			if(bots[target_cell_bot_id].plan.deadlock_check_counter > 1)
+			{
+				cout<<"first detected bot: \n"<<target_cell_bot_id<<endl;
+				for(int i = 0; i < bots.size(); i++)//for repllaning the bot whose path has been least 
+				{
+					bots[i].plan.deadlock_check_counter = 0;
+				}		  
+				int min_called_bot_id = target_cell_bot_id;
+				int min_calling_number = 100000000;
+				while(1)
+				{
+					r = bots[target_cell_bot_id].plan.target_grid_cell.first;
+					c = bots[target_cell_bot_id].plan.target_grid_cell.second;
+					if(bots[target_cell_bot_id].plan.deadlock_check_counter>0)break;
+					bots[target_cell_bot_id].plan.deadlock_check_counter++;
+
+					if(bots[target_cell_bot_id].plan.deadlock_replanned <min_calling_number)
+					{
+						min_calling_number = bots[target_cell_bot_id].plan.deadlock_replanned;
+						min_called_bot_id=target_cell_bot_id;
+					}
+					target_cell_bot_id = bots[target_cell_bot_id].plan.world_grid[r][c].bot_presence.second;
+				}
+				target_cell_bot_id = min_called_bot_id;
+				bots[target_cell_bot_id].plan.deadlock_replanned++;
+				cout<<"replanned_bot: "<<target_cell_bot_id<<endl;
+				break;
+			}
+			else if(bots[target_cell_bot_id].plan.wait_to_plan == 1)
+			{
+				cout<<"Wait to plan!\n";
+				clear_flag = 1;
+				break;
+			}
+		else if(/*bots[target_cell_bot_id].plan.status == 2 || bots[target_cell_bot_id].plan.coverage_completed==1*/bots[target_cell_bot_id].plan.next_target_index==bots[target_cell_bot_id].plan.path_points.size())// to check if the said target bot has covered all its point and is in no position to move
+			{
+				cout<<"here!\n";
+				break;
+			}
+
+			index = target_cell_bot_id;
+			continue;
+		}
+		else
+		{
+			clear_flag = 1;
+		}
+
+	}
+	if(clear_flag == 1)
+	{
+		return -1;
+	}
+	else
+	{
+		return target_cell_bot_id;
+	}
 }
 
 bool check_collision_possibility(AprilInterfaceAndVideoCapture &testbed, vector<PathPlannerGrid> &planners, vector<bot_config> &bots, pair<int,int> &wheel_velocities, int i)
 {
-  cout<<"Checking collision possibility\n";
-  if(bots[i].plan.next_target_index != bots[i].plan.path_points.size()) //for collision avoidance
-  {
-    int c = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].first)/(bots[i].plan.cell_size_x);
-    int r = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].second)/(bots[i].plan.cell_size_y);
-    bots[i].plan.target_grid_cell = make_pair(r, c);
-    /*for(int j = 0; j < bots.size(); j++)
-    {
-    	if(j==i)continue;
-    	if(bots[j].plan.target_grid_cell.first == bots[i].plan.target_grid_cell.first && bots[j].plan.target_grid_cell.second == bots[i].plan.target_grid_cell.second)
-    	{    		    		
-    		cout<<"curretn bot: "<<i<<endl;
-    		cout<<"target_grid_cell: "<<bots[i].plan.target_grid_cell.first<<" "<<bots[i].plan.target_grid_cell.second<<endl;
-    		cout<<"same target cell bots: "<<j<<endl;
-    		cout<<"target_grid_cell: "<<bots[j].plan.target_grid_cell.first<<" "<<bots[j].plan.target_grid_cell.second<<endl;
-    		//return 1;
-    	}
-    }*/
-    if(bots[i].plan.world_grid[r][c].bot_presence.first == 1 && bots[i].plan.world_grid[r][c].bot_presence.second != bots[i].plan.robot_tag_id)
-    {
-        for(int i = 0; i < bots.size(); i++)
-		{
-		  	bots[i].plan.setRobotCellCoordinates(testbed.detections);
-
-		  	bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
-		  	if(bots[i].plan.next_target_index!=bots[i].plan.path_points.size())
-		  	{
-		  		int c = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].first)/(bots[i].plan.cell_size_x);
-			    int r = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].second)/(bots[i].plan.cell_size_y);
-			    bots[i].plan.target_grid_cell = make_pair(r, c);
-		  	}
+	cout<<"Checking collision possibility\n";
+	if(bots[i].plan.next_target_index != bots[i].plan.path_points.size()) //for collision avoidance
+	{
+		int c = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].first)/(bots[i].plan.cell_size_x);
+		int r = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].second)/(bots[i].plan.cell_size_y);
+		bots[i].plan.target_grid_cell = make_pair(r, c);
+	/*for(int j = 0; j < bots.size(); j++)
+	{
+		if(j==i)continue;
+		if(bots[j].plan.target_grid_cell.first == bots[i].plan.target_grid_cell.first && bots[j].plan.target_grid_cell.second == bots[i].plan.target_grid_cell.second)
+		{    		    		
+			cout<<"curretn bot: "<<i<<endl;
+			cout<<"target_grid_cell: "<<bots[i].plan.target_grid_cell.first<<" "<<bots[i].plan.target_grid_cell.second<<endl;
+			cout<<"same target cell bots: "<<j<<endl;
+			cout<<"target_grid_cell: "<<bots[j].plan.target_grid_cell.first<<" "<<bots[j].plan.target_grid_cell.second<<endl;
+			//return 1;
 		}
-      int deadlocked_bot = check_deadlock(bots, i);
-      if(deadlocked_bot != -1)
-      {
-      cout<<"\n******\n";
-      cout<<"Deadlock Detected!"<<endl;
-      bots[deadlocked_bot].plan.DeadlockReplan(testbed, planners);
-      cout<<"Path Replanned!"<<endl;
-      cout<<"******\n\n";
-      }
-      return 1;
-    }
-    /*bots[i].plan.world_grid[r][c].bot_presence.first = 1;
-    bots[i].plan.world_grid[r][c].bot_presence.second = bots[i].plan.robot_tag_id;*/ 
-    return 0;
-  }
+	}*/
+		if(bots[i].plan.world_grid[r][c].bot_presence.first == 1 && bots[i].plan.world_grid[r][c].bot_presence.second != bots[i].plan.robot_tag_id)
+		{
+			for(int i = 0; i < bots.size(); i++)
+			{
+				bots[i].plan.setRobotCellCoordinates(testbed.detections);
+
+				bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
+				if(bots[i].plan.next_target_index!=bots[i].plan.path_points.size())
+				{
+					int c = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].first)/(bots[i].plan.cell_size_x);
+					int r = (bots[i].plan.pixel_path_points[bots[i].plan.next_target_index].second)/(bots[i].plan.cell_size_y);
+					bots[i].plan.target_grid_cell = make_pair(r, c);
+				}
+			}
+			int deadlocked_bot = check_deadlock(bots, i);
+			if(deadlocked_bot != -1)
+			{
+				cout<<"\n******\n";
+				cout<<"Deadlock Detected!"<<endl;
+				bots[deadlocked_bot].plan.DeadlockReplan(testbed, planners);
+				cout<<"Path Replanned!"<<endl;
+				cout<<"******\n\n";
+			}
+			return 1;
+		}
+	/*bots[i].plan.world_grid[r][c].bot_presence.first = 1;
+	bots[i].plan.world_grid[r][c].bot_presence.second = bots[i].plan.robot_tag_id;*/ 
+		return 0;
+	}
 
 }
 
@@ -217,12 +234,12 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 				vector <double> percent_mean_idle_time(number_of_algos);
 				vector <double> path_length_range(number_of_algos);
 				vector <double> mean_path_length(number_of_algos);
-	
+
 				int first_algo_call = 1;
 				for(int c = 0; c < number_of_algos; c++)
 				{
 					AprilInterfaceAndVideoCapture testbed; 
-                    int first_iter = 1;
+					int first_iter = 1;
 					//const char *windowName = "Arena";
 					//cv::namedWindow(windowName,WINDOW_NORMAL);
 					cv::Mat image;
@@ -235,9 +252,9 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 					double start_t = tic();
 					double compute_time = 0;					
 					double start_movement = 0;
-  					double end_movement = 0;
-  					double move_straight_time = 2680;
-  					double turn_quarter_time = 1496;
+					double end_movement = 0;
+					double move_straight_time = 2680;
+					double turn_quarter_time = 1496;
 
 					while(true){
 						cout<<"*************************\n\n";
@@ -257,68 +274,68 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 
 						image = imread(address);						
 						cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
-  						if(first_iter){
-						    bots[0].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
-						    for(int i = 1;i<bots.size();i++){
-						    	bots[i].plan.rcells = bots[0].plan.rcells;
-						   		bots[i].plan.ccells = bots[0].plan.ccells;
-						    }
-						    srand(time(0));
-						    if(first_algo_call)
-						    {
-						    	first_algo_call = 0;
-						    	for(int i = 0; i < bots.size(); i++)
-							    {
-							    	
-							    	start_r[i] = rand()%bots[0].plan.rcells;
-								    start_c[i] = rand()%bots[0].plan.ccells;
-								    while((bots[0].plan.isBlocked(start_r[i], start_c[i])))
-								    {
-								      	start_r[i] = rand()%bots[0].plan.rcells;
-								      	start_c[i] = rand()%bots[0].plan.ccells;
-								    }			    							    
-							      	start_o[i] = rand()%4;						      
-							    }		
-						    }
-						    for(int i = 0; i < bots.size(); i++)
-						    {				    	
-						    	bots[i].plan.addGridCellToPath(start_r[i], start_c[i], testbed);
-						      	bots[i].plan.world_grid[start_r[i]][start_c[i]].steps = 1;      	
-						      	bots[i].pose.x = start_r[i];
-						      	bots[i].pose.y = start_c[i];
-						      	bots[i].pose.omega = start_o[i];
-						      	bots[i].plan.current_orient = bots[i].pose.omega;
-						      	bots[i].plan.robot_id = i;
-						      	bots[i].plan.robot_tag_id = i;
-						    }						    
-					    }//if first_iter
+						if(first_iter){
+							bots[0].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
+							for(int i = 1;i<bots.size();i++){
+								bots[i].plan.rcells = bots[0].plan.rcells;
+								bots[i].plan.ccells = bots[0].plan.ccells;
+							}
+							srand(time(0));
+							if(first_algo_call)
+							{
+								first_algo_call = 0;
+								for(int i = 0; i < bots.size(); i++)
+								{
+									
+									start_r[i] = rand()%bots[0].plan.rcells;
+									start_c[i] = rand()%bots[0].plan.ccells;
+									while((bots[0].plan.isBlocked(start_r[i], start_c[i])))
+									{
+										start_r[i] = rand()%bots[0].plan.rcells;
+										start_c[i] = rand()%bots[0].plan.ccells;
+									}			    							    
+									start_o[i] = rand()%4;						      
+								}		
+							}
+							for(int i = 0; i < bots.size(); i++)
+							{				    	
+								bots[i].plan.addGridCellToPath(start_r[i], start_c[i], testbed);
+								bots[i].plan.world_grid[start_r[i]][start_c[i]].steps = 1;      	
+								bots[i].pose.x = start_r[i];
+								bots[i].pose.y = start_c[i];
+								bots[i].pose.omega = start_o[i];
+								bots[i].plan.current_orient = bots[i].pose.omega;
+								bots[i].plan.robot_id = i;
+								bots[i].plan.robot_tag_id = i;
+							}						    
+						}//if first_iter
 
-					    for(int i = 0;i<bots.size();i++){      
-					      planners[i] = bots[i].plan;
-					    }
-					    
-					    double compute_start = tic();
-					    for(int i = 0;i<bots.size();i++){
-					      bots[i].plan.wait_to_plan = 0;
-					      cout<<i<<": ";
-					      switch(algo_select)
-					      {
-					      case 1: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners); break;
-					      case 2: bots[i].plan.SSB(testbed,bots[i].pose, 2.5,planners); break;				
-					      case 3: bots[i].plan.BoB(testbed,bots[i].pose, 2.5,planners); break; 
-					      case 4: bots[i].plan.MDFS(testbed,bots[i].pose, 2.5,planners); break;
-					      case 5: bots[i].plan.BrickAndMortar(testbed,bots[i].pose, 2.5,planners); break; 
-					      case 6: bots[i].plan.BoustrophedonMotionWithUpdatedBactrackSelection(testbed,bots[i].pose, 2.5,planners); break;
-					      case 7: bots[i].plan.BoustrophedonMotionWithBSA_CMlikeBacktracking(testbed,bots[i].pose, 2.5,planners); break;    
-					      case 8: bots[i].plan.S_MSTC(testbed,bots[i].pose, 2.5,planners); break;
-					      case 9: bots[i].plan.ANTS(testbed,bots[i].pose, 2.5,planners); break;    
-					      default: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);   
-					      } 
-					      planners[i] = bots[i].plan;  
-					    }
-					    double compute_end  = tic();
-					    time_to_compute[c] += (compute_end-compute_start);
-					    int path_sum = 0;
+						for(int i = 0;i<bots.size();i++){      
+							planners[i] = bots[i].plan;
+						}
+						
+						double compute_start = tic();
+						for(int i = 0;i<bots.size();i++){
+							bots[i].plan.wait_to_plan = 0;
+							cout<<i<<": ";
+							switch(algo_select)
+							{
+								case 1: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners); break;
+								case 2: bots[i].plan.SSB(testbed,bots[i].pose, 2.5,planners); break;				
+								case 3: bots[i].plan.BoB(testbed,bots[i].pose, 2.5,planners); break; 
+								case 4: bots[i].plan.MDFS(testbed,bots[i].pose, 2.5,planners); break;
+								case 5: bots[i].plan.BrickAndMortar(testbed,bots[i].pose, 2.5,planners); break; 
+								case 6: bots[i].plan.BoustrophedonMotionWithUpdatedBactrackSelection(testbed,bots[i].pose, 2.5,planners); break;
+								case 7: bots[i].plan.BoustrophedonMotionWithBSA_CMlikeBacktracking(testbed,bots[i].pose, 2.5,planners); break;    
+								case 8: bots[i].plan.S_MSTC(testbed,bots[i].pose, 2.5,planners); break;
+								case 9: bots[i].plan.ANTS(testbed,bots[i].pose, 2.5,planners); break;    
+								default: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);   
+							} 
+							planners[i] = bots[i].plan;  
+						}
+						double compute_end  = tic();
+						time_to_compute[c] += (compute_end-compute_start);
+						int path_sum = 0;
 						for(int i = 0; i < bots.size(); i++)
 						{
 							path_sum+= bots[i].plan.path_points.size();
@@ -329,222 +346,222 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 							break;
 						}	
 
-					    vector <pair<double, int>> time_left_to_move(bots.size());
-					    double time_since_last_movement;
-					    double current_time = tic();    
+						vector <pair<double, int>> time_left_to_move(bots.size());
+						double time_since_last_movement;
+						double current_time = tic();    
 						if(!first_iter)
 						{
 							for(int i = 0; i < bots.size(); i++)
 							{	
 								bots[i].plan.bot_start_movement=current_time;
 								bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
-					        	if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
-					        	{
-					        	 	bots[i].plan.time_spent_in_computation += (bots[i].plan.bot_start_movement-end_movement);	
+								if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
+								{
+									bots[i].plan.time_spent_in_computation += (bots[i].plan.bot_start_movement-end_movement);	
 									time_since_last_movement = current_time - bots[i].plan.last_move_time - bots[i].plan.time_spent_in_computation;
 									time_left_to_move[i].first = bots[i].plan.wait_time-time_since_last_movement;
 									time_left_to_move[i].second = bots[i].plan.robot_tag_id;									
-						        }
-						        else
-						        {
-						        	time_left_to_move[i].first = 100000000;
+								}
+								else
+								{
+									time_left_to_move[i].first = 100000000;
 									time_left_to_move[i].second = bots[i].plan.robot_tag_id;
-						        }						        
+								}						        
 							}							
 						}
 						sort(time_left_to_move.begin(), time_left_to_move.end());
 
 						start_movement = tic();
-					   	current_time = tic();
+						current_time = tic();
 
-					   	pair <int, int> wheel_velocities;//dummy variable in case of simulation
-					    for(int i = 0;i<bots.size();i++){    
-					        bots[time_left_to_move[i].second].plan.next_target_index = bots[time_left_to_move[i].second].plan.index_travelled+1;
-					        if((bots[time_left_to_move[i].second].plan.next_target_index) != bots[time_left_to_move[i].second].plan.path_points.size())
-					        {
-					        	cout<<"id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
-					        	if(bots[time_left_to_move[i].second].plan.movement_made==1 && !first_iter)
-						        {
-						        	bots[time_left_to_move[i].second].plan.last_orient = bots[time_left_to_move[i].second].plan.current_orient;
-						        	int nx = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].x - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].x;
-						        	int ny = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].y - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].y;
-						        	if(nx==0 && ny==0) bots[time_left_to_move[i].second].plan.iter_wait = 0;
-						        	else if(nx == -1 && ny == 0 )//up
-						        	{
-						        		bots[time_left_to_move[i].second].plan.current_orient = 0;	        	
-						        	}
-						        	else if(nx == 0 && ny == 1)//right
-						        	{
-						        		bots[time_left_to_move[i].second].plan.current_orient = 1;
-						        	}
-						        	else if(nx == 1 && ny == 0)//down
-						        	{
-						        		bots[time_left_to_move[i].second].plan.current_orient = 2;
-						        	}
-						        	else if(nx == 0 && ny == -1)//left
-						        	{
-						        		bots[time_left_to_move[i].second].plan.current_orient = 3;
-						        	}
-						        	if(!(nx==0 && ny==0))
-						        	{
-						        		if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==0)//moving straight
-						        		{
-						        			bots[time_left_to_move[i].second].plan.way_to_move = 0;
-						        			//bots[time_left_to_move[i].second].plan.iter_wait = 0 + rand()%3;
-						        			double rand_delay = rand()%600;
-						        			rand_delay = 300 - rand_delay;
-						        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
-						        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + rand_delay)/(100000000);
-						        		}
-						        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)%3==0)//moving 90 degree
-						        		{
-						        			bots[time_left_to_move[i].second].plan.way_to_move = 1;
-						        			//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
-						        			double rand_delay_straight = rand()%600;
-						        			rand_delay_straight = 300 - rand_delay_straight;
-						        			double rand_delay_turn = rand()%400;
-						        			rand_delay_turn = 200 - rand_delay_turn;
-						        			double rand_delay = rand_delay_straight + rand_delay_turn;
-						        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-						        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
-						        		}
-						        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==1)//moving 90 degree
-						        		{
-						        			bots[time_left_to_move[i].second].plan.way_to_move = 1;
-						        			double rand_delay_straight = rand()%600;
-						        			rand_delay_straight = 300 - rand_delay_straight;
-						        			double rand_delay_turn = rand()%400;
-						        			rand_delay_turn = 200 - rand_delay_turn;
-						        			double rand_delay = rand_delay_straight + rand_delay_turn;
-						        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-						        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
-						        			//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
-						        		}
-						        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==2)//moving 180 degree
-						        		{
-						        			bots[time_left_to_move[i].second].plan.way_to_move = 2;
-						        			double rand_delay_straight = rand()%600;
-						        			rand_delay_straight = 300 - rand_delay_straight;
-						        			double rand_delay_turn = rand()%400;
-						        			rand_delay_turn = 200 - rand_delay_turn;
-						        			double rand_delay = rand_delay_straight + rand_delay_turn;
-						        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
-						        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(100000000);
-						        			//bots[time_left_to_move[i].second].plan.iter_wait = 6 + rand()%3;
-						        		}
-						        	}
-						        }
-						        
-						        bots[time_left_to_move[i].second].plan.time_spent_in_computation += (start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement);
-						        time_since_last_movement = current_time - bots[time_left_to_move[i].second].plan.last_move_time - bots[time_left_to_move[i].second].plan.time_spent_in_computation;						       
-					        	if((time_since_last_movement >= bots[time_left_to_move[i].second].plan.wait_time) && !check_collision_possibility(testbed, planners, bots, wheel_velocities, time_left_to_move[i].second) /*&& bots[time_left_to_move[i].second].plan.iter_wait <=0!*/) {
-					        		       		
-					        		bots[time_left_to_move[i].second].plan.index_travelled++;
-					        		//bots[time_left_to_move[i].second].plan.updateMovementinSimulation(testbed);
-					       			planners[time_left_to_move[i].second] = bots[time_left_to_move[i].second].plan;
-					        		bots[time_left_to_move[i].second].plan.movement_made = 1;
-					        		bots[time_left_to_move[i].second].plan.time_spent_in_computation = 0;
-					        	}
-					        	else{	        	
-						        	bots[time_left_to_move[i].second].plan.movement_made = 0;
-					        	}        	
-					        }    
-					   	}   					   	
-					   	end_movement = tic();
-					   	for(int i = 0; i < bots.size(); i++)
-						{	    
-						    if(bots[i].plan.movement_made==1)
+						pair <int, int> wheel_velocities;//dummy variable in case of simulation
+						for(int i = 0;i<bots.size();i++){    
+							bots[time_left_to_move[i].second].plan.next_target_index = bots[time_left_to_move[i].second].plan.index_travelled+1;
+							if((bots[time_left_to_move[i].second].plan.next_target_index) != bots[time_left_to_move[i].second].plan.path_points.size())
 							{
-							   bots[i].plan.last_move_time = end_movement;
+								cout<<"id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
+								if(bots[time_left_to_move[i].second].plan.movement_made==1 && !first_iter)
+								{
+									bots[time_left_to_move[i].second].plan.last_orient = bots[time_left_to_move[i].second].plan.current_orient;
+									int nx = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].x - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].x;
+									int ny = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].y - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].y;
+									if(nx==0 && ny==0) bots[time_left_to_move[i].second].plan.iter_wait = 0;
+									else if(nx == -1 && ny == 0 )//up
+									{
+										bots[time_left_to_move[i].second].plan.current_orient = 0;	        	
+									}
+									else if(nx == 0 && ny == 1)//right
+									{
+										bots[time_left_to_move[i].second].plan.current_orient = 1;
+									}
+									else if(nx == 1 && ny == 0)//down
+									{
+										bots[time_left_to_move[i].second].plan.current_orient = 2;
+									}
+									else if(nx == 0 && ny == -1)//left
+									{
+										bots[time_left_to_move[i].second].plan.current_orient = 3;
+									}
+									if(!(nx==0 && ny==0))
+									{
+										if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==0)//moving straight
+										{
+											bots[time_left_to_move[i].second].plan.way_to_move = 0;
+											//bots[time_left_to_move[i].second].plan.iter_wait = 0 + rand()%3;
+											double rand_delay = rand()%600;
+											rand_delay = 300 - rand_delay;
+											bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
+											bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + rand_delay)/(100000000);
+										}
+										else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)%3==0)//moving 90 degree
+										{
+											bots[time_left_to_move[i].second].plan.way_to_move = 1;
+											//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
+											double rand_delay_straight = rand()%600;
+											rand_delay_straight = 300 - rand_delay_straight;
+											double rand_delay_turn = rand()%400;
+											rand_delay_turn = 200 - rand_delay_turn;
+											double rand_delay = rand_delay_straight + rand_delay_turn;
+											bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+											bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
+										}
+										else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==1)//moving 90 degree
+										{
+											bots[time_left_to_move[i].second].plan.way_to_move = 1;
+											double rand_delay_straight = rand()%600;
+											rand_delay_straight = 300 - rand_delay_straight;
+											double rand_delay_turn = rand()%400;
+											rand_delay_turn = 200 - rand_delay_turn;
+											double rand_delay = rand_delay_straight + rand_delay_turn;
+											bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+											bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
+											//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
+										}
+										else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==2)//moving 180 degree
+										{
+											bots[time_left_to_move[i].second].plan.way_to_move = 2;
+											double rand_delay_straight = rand()%600;
+											rand_delay_straight = 300 - rand_delay_straight;
+											double rand_delay_turn = rand()%400;
+											rand_delay_turn = 200 - rand_delay_turn;
+											double rand_delay = rand_delay_straight + rand_delay_turn;
+											bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
+											bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(100000000);
+											//bots[time_left_to_move[i].second].plan.iter_wait = 6 + rand()%3;
+										}
+									}
+								}
+								
+								bots[time_left_to_move[i].second].plan.time_spent_in_computation += (start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement);
+								time_since_last_movement = current_time - bots[time_left_to_move[i].second].plan.last_move_time - bots[time_left_to_move[i].second].plan.time_spent_in_computation;						       
+								if((time_since_last_movement >= bots[time_left_to_move[i].second].plan.wait_time) && !check_collision_possibility(testbed, planners, bots, wheel_velocities, time_left_to_move[i].second) /*&& bots[time_left_to_move[i].second].plan.iter_wait <=0!*/) {
+
+								bots[time_left_to_move[i].second].plan.index_travelled++;
+									//bots[time_left_to_move[i].second].plan.updateMovementinSimulation(testbed);
+								planners[time_left_to_move[i].second] = bots[time_left_to_move[i].second].plan;
+								bots[time_left_to_move[i].second].plan.movement_made = 1;
+								bots[time_left_to_move[i].second].plan.time_spent_in_computation = 0;
 							}
-						      		
+							else{	        	
+								bots[time_left_to_move[i].second].plan.movement_made = 0;
+							}        	
+						}    
+					}   					   	
+					end_movement = tic();
+					for(int i = 0; i < bots.size(); i++)
+					{	    
+						if(bots[i].plan.movement_made==1)
+						{
+							bots[i].plan.last_move_time = end_movement;
 						}
 
+					}
 
 
-					   	
-					   	bots[0].plan.drawGrid(image, planners);
-					   	for(int i = 0;i<bots.size();i++){      	
-					        bots[i].plan.drawPath(image);        
-					    }
-					    for(int i = 0; i < bots.size(); i++)
-					    {
-					    	bots[i].plan.drawRobot(image);
-					    }
-					    //imshow(windowName,image);
-						bool completed = 1;
-					    for(int i = 0; i < bots.size(); i++)
-					    {
-					    	if(bots[i].plan.path_points.size()!=(bots[i].plan.next_target_index))
-					    	{
-					    		completed = 0;
-					    		break;
-					    	}
-					    }
-					    if(!first_iter && completed == 1)
-					    {
-					    	cout<<"Coverage Completed!\n";
-					    	break;
-					    }
 
-					    if(first_iter)
-					    {
-					     	first_iter = 0;
-					    }
+
+					bots[0].plan.drawGrid(image, planners);
+					for(int i = 0;i<bots.size();i++){      	
+						bots[i].plan.drawPath(image);        
+					}
+					for(int i = 0; i < bots.size(); i++)
+					{
+						bots[i].plan.drawRobot(image);
+					}
+						//imshow(windowName,image);
+					bool completed = 1;
+					for(int i = 0; i < bots.size(); i++)
+					{
+						if(bots[i].plan.path_points.size()!=(bots[i].plan.next_target_index))
+						{
+							completed = 0;
+							break;
+						}
+					}
+					if(!first_iter && completed == 1)
+					{
+						cout<<"Coverage Completed!\n";
+						break;
+					}
+
+					if(first_iter)
+					{
+						first_iter = 0;
+					}
 					/*    if (cv::waitKey(1) == 27){
-					        break;//until escape is pressed
-					    }*/
+							break;//until escape is pressed
+						}*/
 					}//while true
 					double end_t = tic();
 					bool succesful_termination = 1;
 					for(int i = 0; i < bots[0].plan.rcells; i++)
 					{
 						for(int j = 0; j < bots[0].plan.ccells; j++)
-					    {
-					    	if(bots[0].plan.isEmpty(i,j) && bots[0].plan.world_grid[i][j].steps!=1)
-					        {
-					            succesful_termination = 0;
-					            break;
-					        }
-					    }    
-					    if(succesful_termination == 0)
-					    {
-					       	break;
-					    }
+						{
+							if(bots[0].plan.isEmpty(i,j) && bots[0].plan.world_grid[i][j].steps!=1)
+							{
+								succesful_termination = 0;
+								break;
+							}
+						}    
+						if(succesful_termination == 0)
+						{
+							break;
+						}
 					}	
 					if(succesful_termination!=1) problem_in_the_trial = 1;
 					for(int j = 0; j < bots.size(); j++)
 					{
 						if(problem_in_the_trial == 1) break;
 						for(int i = 0;i<bots[j].plan.total_points-1;i++){
-						    if((abs((bots[j].plan.path_points[i].x)-(bots[j].plan.path_points[i+1].x)) + abs((bots[j].plan.path_points[i].y)- (bots[j].plan.path_points[i+1].y)))>1)
-						    {
-						      problem_in_the_trial = 1;						      
-						      cout<<"manhattan_distance of target_grid_cell greater than 1\n";
-						      break;
-						    }						    
+							if((abs((bots[j].plan.path_points[i].x)-(bots[j].plan.path_points[i+1].x)) + abs((bots[j].plan.path_points[i].y)- (bots[j].plan.path_points[i+1].y)))>1)
+							{
+								problem_in_the_trial = 1;						      
+								cout<<"manhattan_distance of target_grid_cell greater than 1\n";
+								break;
+							}						    
 						}
 						if(problem_in_the_trial == 1) break;
 					}	
 					
 					if(problem_in_the_trial) break;
-  					//imshow(windowName,image);
-  					int min_length = 100000000;
-			    	int max_length = 0;
-			    	for(int i = 0; i < bots.size(); i++)
-			    	{
-			    		if(bots[i].plan.path_points.size()<min_length)
-			    		{
-			    			min_length = bots[i].plan.path_points.size();
-			    		}
-			    		if(bots[i].plan.path_points.size() > max_length)
-			    		{
-			    			max_length = bots[i].plan.path_points.size();
-			    		}
-			    	}
-			    	path_length_range[c] = max_length-min_length;		    	
+					//imshow(windowName,image);
+					int min_length = 100000000;
+					int max_length = 0;
+					for(int i = 0; i < bots.size(); i++)
+					{
+						if(bots[i].plan.path_points.size()<min_length)
+						{
+							min_length = bots[i].plan.path_points.size();
+						}
+						if(bots[i].plan.path_points.size() > max_length)
+						{
+							max_length = bots[i].plan.path_points.size();
+						}
+					}
+					path_length_range[c] = max_length-min_length;		    	
 
-  					vector <vector<int>> coverage(bots[0].plan.rcells);
+					vector <vector<int>> coverage(bots[0].plan.rcells);
 					for(int i = 0; i < bots[0].plan.rcells; i++)
 					{
 						coverage[i].resize(bots[0].plan.ccells);
@@ -603,7 +620,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 				
 				if(problem_in_the_trial) continue;
 				//values to be logged here
-		
+
 				for(int i = 0; i < number_of_algos; i++)
 				{
 					iterations[a][number_of_trials-trials].push_back(total_iterations[i]);
@@ -760,7 +777,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 		outputFile.open(save_address);
 		for(int i = 0; i < number_of_trials + 3; i++)
 		{
-					
+
 			l = 0;
 			for(int j = 0; j < iterations[a][i].size(); j++)
 			{
@@ -792,7 +809,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 		outputFile.open(save_address);
 		for(int i = 0; i < number_of_trials + 3; i++)
 		{
-		
+
 			l = 0;
 			for(int j = 0; j < repetedsteps[a][i].size(); j++)
 			{
@@ -892,7 +909,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 					cout<<"** ";
 					continue;
 				}
-			
+
 				outputFile<<final_termination_time[a][i][j]<<",";
 				cout<<final_termination_time[a][i][j]<<" ";
 				l++;
@@ -923,7 +940,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 					cout<<"** ";
 					continue;
 				}
-			
+
 				outputFile<<mean_of_idle_time[a][i][j]<<",";
 				cout<<mean_of_idle_time[a][i][j]<<" ";
 				l++;
@@ -955,7 +972,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 					cout<<"** ";
 					continue;
 				}
-			
+
 				outputFile<<percent_of_mean_idle_time[a][i][j]<<",";
 				cout<<percent_of_mean_idle_time[a][i][j]<<" ";
 				l++;
@@ -987,7 +1004,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 					cout<<"** ";
 					continue;
 				}
-			
+
 				outputFile<<range_of_path_length[a][i][j]<<",";
 				cout<<range_of_path_length[a][i][j]<<" ";
 				l++;
@@ -1018,7 +1035,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 					cout<<"** ";
 					continue;
 				}
-			
+
 				outputFile<<mean_robot_path_length[a][i][j]<<",";
 				cout<<mean_robot_path_length[a][i][j]<<" ";
 				l++;
@@ -1486,7 +1503,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 
 
 	}//for a
-							
+
 }
 
 void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_of_algos)
@@ -1509,7 +1526,7 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 		range_of_path_length[a].resize(comm_ranges.size());
 		percentage_coverage[a].resize(comm_ranges.size());
 		termination_time[a].resize(comm_ranges.size());
-	
+
 		string address;
 		switch(a)
 		{
@@ -1544,7 +1561,7 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 					for(int d = 0; d < number_of_algos; d++)
 					{
 						AprilInterfaceAndVideoCapture testbed; 
-	                    int first_iter = 1;
+						int first_iter = 1;
 						//const char *windowName = "Arena";
 						//cv::namedWindow(windowName,WINDOW_NORMAL);
 						cv::Mat image;
@@ -1556,17 +1573,17 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 						for(int i = 0; i < robotCount; i++)
 						{
 							bots.push_back(bot_config(10, 10,130,tp[i]));
-						  	planners.push_back(PathPlannerGrid(tp[i]));
+							planners.push_back(PathPlannerGrid(tp[i]));
 						}
 						int algo_select = d+1;
 						double start_t = tic();
 						double compute_time = 0;					
 						double start_movement = 0;
-	  					double end_movement = 0;
-	  					double move_straight_time = 2680;
-	  					double turn_quarter_time = 1496;
-	  					double time_to_compute = 0;
-	  					int total_iterations = 0;
+						double end_movement = 0;
+						double move_straight_time = 2680;
+						double turn_quarter_time = 1496;
+						double time_to_compute = 0;
+						int total_iterations = 0;
 
 
 						while(true){
@@ -1587,66 +1604,66 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 
 							image = imread(address);						
 							cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
-	  						if(first_iter){	  						
-	  							for(int i = 0; i < bots.size(); i++)
-	  							{
-	  								bots[i].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
-								    srand(time(0));
-								    if(first_algo_call)
-								    {
-								    	first_algo_call = 0;
-								    	for(int j = 0; j < bots.size(); j++)
-									    {
-									    	
-									    	start_r[j] = rand()%bots[0].plan.rcells;
-										    start_c[j] = rand()%bots[0].plan.ccells;
-										    while((bots[0].plan.isBlocked(start_r[j], start_c[j])))
-										    {
-										      	start_r[j] = rand()%bots[0].plan.rcells;
-										    	start_c[j] = rand()%bots[0].plan.ccells;
-										    }			    							    
-									      	start_o[j] = rand()%4;						      
-									    }		
-								    }								    		
-						    						    	
-								    bots[i].plan.addGridCellToPath(start_r[i], start_c[i], testbed);
-								    bots[i].plan.world_grid[start_r[i]][start_c[i]].steps = 1;      	
-								    bots[i].pose.x = start_r[i];
-								    bots[i].pose.y = start_c[i];
-								    bots[i].pose.omega = start_o[i];
-								    bots[i].plan.current_orient = bots[i].pose.omega;
-								    bots[i].plan.robot_id = i;
-								    bots[i].plan.robot_tag_id = i;
-								    bots[i].plan.comm_dist = comm_ranges[c];//feets				
-	  							}//for i							    					    
-						    }//if first_iter
+							if(first_iter){	  						
+								for(int i = 0; i < bots.size(); i++)
+								{
+									bots[i].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
+									srand(time(0));
+									if(first_algo_call)
+									{
+										first_algo_call = 0;
+										for(int j = 0; j < bots.size(); j++)
+										{
+											
+											start_r[j] = rand()%bots[0].plan.rcells;
+											start_c[j] = rand()%bots[0].plan.ccells;
+											while((bots[0].plan.isBlocked(start_r[j], start_c[j])))
+											{
+												start_r[j] = rand()%bots[0].plan.rcells;
+												start_c[j] = rand()%bots[0].plan.ccells;
+											}			    							    
+											start_o[j] = rand()%4;						      
+										}		
+									}								    		
 
-						    for(int i = 0;i<bots.size();i++){      
-						      planners[i] = bots[i].plan;
-						    }
-						    
-						    double compute_start = tic();
-						    for(int i = 0;i<bots.size();i++){
-						      bots[i].plan.wait_to_plan = 0;
-						      cout<<i<<": ";
-						      switch(algo_select)
-						      {
-						      case 1: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners); break;
-						      case 2: bots[i].plan.SSB(testbed,bots[i].pose, 2.5,planners); break;				
-						      case 3: bots[i].plan.BoB(testbed,bots[i].pose, 2.5,planners); break; 
-						      case 4: bots[i].plan.MDFS(testbed,bots[i].pose, 2.5,planners); break;
-						      case 5: bots[i].plan.BrickAndMortar(testbed,bots[i].pose, 2.5,planners); break; 
-						      case 6: bots[i].plan.BoustrophedonMotionWithUpdatedBactrackSelection(testbed,bots[i].pose, 2.5,planners); break;
-						      case 7: bots[i].plan.BoustrophedonMotionWithBSA_CMlikeBacktracking(testbed,bots[i].pose, 2.5,planners); break;    
-						      case 8: bots[i].plan.S_MSTC(testbed,bots[i].pose, 2.5,planners); break;
-						      case 9: bots[i].plan.ANTS(testbed,bots[i].pose, 2.5,planners); break;    
-						      default: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);   
-						      } 
-						      planners[i] = bots[i].plan;  
-						    }
-						    double compute_end  = tic();
-						    time_to_compute += compute_end - compute_start;
-						    int path_sum = 0;
+									bots[i].plan.addGridCellToPath(start_r[i], start_c[i], testbed);
+									bots[i].plan.world_grid[start_r[i]][start_c[i]].steps = 1;      	
+									bots[i].pose.x = start_r[i];
+									bots[i].pose.y = start_c[i];
+									bots[i].pose.omega = start_o[i];
+									bots[i].plan.current_orient = bots[i].pose.omega;
+									bots[i].plan.robot_id = i;
+									bots[i].plan.robot_tag_id = i;
+									bots[i].plan.comm_dist = comm_ranges[c];//feets				
+								}//for i							    					    
+							}//if first_iter
+
+							for(int i = 0;i<bots.size();i++){      
+								planners[i] = bots[i].plan;
+							}
+							
+							double compute_start = tic();
+							for(int i = 0;i<bots.size();i++){
+								bots[i].plan.wait_to_plan = 0;
+								cout<<i<<": ";
+								switch(algo_select)
+								{
+									case 1: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners); break;
+									case 2: bots[i].plan.SSB(testbed,bots[i].pose, 2.5,planners); break;				
+									case 3: bots[i].plan.BoB(testbed,bots[i].pose, 2.5,planners); break; 
+									case 4: bots[i].plan.MDFS(testbed,bots[i].pose, 2.5,planners); break;
+									case 5: bots[i].plan.BrickAndMortar(testbed,bots[i].pose, 2.5,planners); break; 
+									case 6: bots[i].plan.BoustrophedonMotionWithUpdatedBactrackSelection(testbed,bots[i].pose, 2.5,planners); break;
+									case 7: bots[i].plan.BoustrophedonMotionWithBSA_CMlikeBacktracking(testbed,bots[i].pose, 2.5,planners); break;    
+									case 8: bots[i].plan.S_MSTC(testbed,bots[i].pose, 2.5,planners); break;
+									case 9: bots[i].plan.ANTS(testbed,bots[i].pose, 2.5,planners); break;    
+									default: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);   
+								} 
+								planners[i] = bots[i].plan;  
+							}
+							double compute_end  = tic();
+							time_to_compute += compute_end - compute_start;
+							int path_sum = 0;
 							for(int i = 0; i < bots.size(); i++)
 							{
 								path_sum+= bots[i].plan.path_points.size();
@@ -1657,171 +1674,171 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 								break;
 							}	
 */
-						    vector <pair<double, int>> time_left_to_move(bots.size());
-						    double time_since_last_movement;
-						    double current_time = tic();    
+							vector <pair<double, int>> time_left_to_move(bots.size());
+							double time_since_last_movement;
+							double current_time = tic();    
 							if(!first_iter)
 							{
 								for(int i = 0; i < bots.size(); i++)
 								{	
 									bots[i].plan.bot_start_movement=current_time;
 									bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
-						        	if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
-						        	{
-						        	 	bots[i].plan.time_spent_in_computation += (bots[i].plan.bot_start_movement-end_movement);	
+									if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
+									{
+										bots[i].plan.time_spent_in_computation += (bots[i].plan.bot_start_movement-end_movement);	
 										time_since_last_movement = current_time - bots[i].plan.last_move_time - bots[i].plan.time_spent_in_computation;
 										time_left_to_move[i].first = bots[i].plan.wait_time-time_since_last_movement;
 										time_left_to_move[i].second = bots[i].plan.robot_tag_id;									
-							        }
-							        else
-							        {
-							        	time_left_to_move[i].first = 100000000;
+									}
+									else
+									{
+										time_left_to_move[i].first = 100000000;
 										time_left_to_move[i].second = bots[i].plan.robot_tag_id;
-							        }						        
+									}						        
 								}							
 							}
 							//sort(time_left_to_move.begin(), time_left_to_move.end());
 
 							start_movement = tic();
-						   	current_time = tic();
+							current_time = tic();
 
-						   	pair <int, int> wheel_velocities;//dummy variable in case of simulation
-						    for(int i = 0;i<bots.size();i++){    
-						        bots[time_left_to_move[i].second].plan.next_target_index = bots[time_left_to_move[i].second].plan.index_travelled+1;
-						        if((bots[time_left_to_move[i].second].plan.next_target_index) != bots[time_left_to_move[i].second].plan.path_points.size())
-						        {
-						        	cout<<"id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
-						        	if(bots[time_left_to_move[i].second].plan.movement_made==1 && !first_iter)
-							        {
-							        	bots[time_left_to_move[i].second].plan.last_orient = bots[time_left_to_move[i].second].plan.current_orient;
-							        	int nx = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].x - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].x;
-							        	int ny = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].y - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].y;
-							        	if(nx==0 && ny==0) bots[time_left_to_move[i].second].plan.iter_wait = 0;
-							        	else if(nx == -1 && ny == 0 )//up
-							        	{
-							        		bots[time_left_to_move[i].second].plan.current_orient = 0;	        	
-							        	}
-							        	else if(nx == 0 && ny == 1)//right
-							        	{
-							        		bots[time_left_to_move[i].second].plan.current_orient = 1;
-							        	}
-							        	else if(nx == 1 && ny == 0)//down
-							        	{
-							        		bots[time_left_to_move[i].second].plan.current_orient = 2;
-							        	}
-							        	else if(nx == 0 && ny == -1)//left
-							        	{
-							        		bots[time_left_to_move[i].second].plan.current_orient = 3;
-							        	}
-							        	if(!(nx==0 && ny==0))
-							        	{
-							        		if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==0)//moving straight
-							        		{
-							        			bots[time_left_to_move[i].second].plan.way_to_move = 0;
-							        			//bots[time_left_to_move[i].second].plan.iter_wait = 0 + rand()%3;
-							        			double rand_delay = rand()%600;
-							        			rand_delay = 300 - rand_delay;
-							        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
-							        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + rand_delay)/(100000000);
-							        		}
-							        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)%3==0)//moving 90 degree
-							        		{
-							        			bots[time_left_to_move[i].second].plan.way_to_move = 1;
-							        			//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
-							        			double rand_delay_straight = rand()%600;
-							        			rand_delay_straight = 300 - rand_delay_straight;
-							        			double rand_delay_turn = rand()%400;
-							        			rand_delay_turn = 200 - rand_delay_turn;
-							        			double rand_delay = rand_delay_straight + rand_delay_turn;
-							        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-							        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
-							        		}
-							        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==1)//moving 90 degree
-							        		{
-							        			bots[time_left_to_move[i].second].plan.way_to_move = 1;
-							        			double rand_delay_straight = rand()%600;
-							        			rand_delay_straight = 300 - rand_delay_straight;
-							        			double rand_delay_turn = rand()%400;
-							        			rand_delay_turn = 200 - rand_delay_turn;
-							        			double rand_delay = rand_delay_straight + rand_delay_turn;
-							        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-							        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
-							        			//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
-							        		}
-							        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==2)//moving 180 degree
-							        		{
-							        			bots[time_left_to_move[i].second].plan.way_to_move = 2;
-							        			double rand_delay_straight = rand()%600;
-							        			rand_delay_straight = 300 - rand_delay_straight;
-							        			double rand_delay_turn = rand()%400;
-							        			rand_delay_turn = 200 - rand_delay_turn;
-							        			double rand_delay = rand_delay_straight + rand_delay_turn;
-							        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
-							        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(100000000);
-							        			//bots[time_left_to_move[i].second].plan.iter_wait = 6 + rand()%3;
-							        		}
-							        	}
-							        }
-							        
-							        bots[time_left_to_move[i].second].plan.time_spent_in_computation += (start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement);
-							        time_since_last_movement = current_time - bots[time_left_to_move[i].second].plan.last_move_time - bots[time_left_to_move[i].second].plan.time_spent_in_computation;						       
-						        	//if((time_since_last_movement >= bots[time_left_to_move[i].second].plan.wait_time) && !check_collision_possibility(testbed, planners, bots, wheel_velocities, time_left_to_move[i].second) /*&& bots[time_left_to_move[i].second].plan.iter_wait <=0!*/) {
-						        	if(1){	       		
-						        		bots[time_left_to_move[i].second].plan.index_travelled++;
-						        		//bots[time_left_to_move[i].second].plan.updateMovementinSimulation(testbed);
-						       			planners[time_left_to_move[i].second] = bots[time_left_to_move[i].second].plan;
-						        		bots[time_left_to_move[i].second].plan.movement_made = 1;
-						        		bots[time_left_to_move[i].second].plan.time_spent_in_computation = 0;
-						        	}
-						        	else{	        	
-							        	bots[time_left_to_move[i].second].plan.movement_made = 0;
-						        	}        	
-						        }    
-						   	}   					   	
-						   	end_movement = tic();
-						   	/*for(int i = 0; i < bots.size(); i++)
-							{	    
-							    if(bots[i].plan.movement_made==1)
+							pair <int, int> wheel_velocities;//dummy variable in case of simulation
+							for(int i = 0;i<bots.size();i++){    
+								bots[time_left_to_move[i].second].plan.next_target_index = bots[time_left_to_move[i].second].plan.index_travelled+1;
+								if((bots[time_left_to_move[i].second].plan.next_target_index) != bots[time_left_to_move[i].second].plan.path_points.size())
 								{
-								   bots[i].plan.last_move_time = end_movement;
+									cout<<"id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
+									if(bots[time_left_to_move[i].second].plan.movement_made==1 && !first_iter)
+									{
+										bots[time_left_to_move[i].second].plan.last_orient = bots[time_left_to_move[i].second].plan.current_orient;
+										int nx = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].x - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].x;
+										int ny = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].y - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].y;
+										if(nx==0 && ny==0) bots[time_left_to_move[i].second].plan.iter_wait = 0;
+										else if(nx == -1 && ny == 0 )//up
+										{
+											bots[time_left_to_move[i].second].plan.current_orient = 0;	        	
+										}
+										else if(nx == 0 && ny == 1)//right
+										{
+											bots[time_left_to_move[i].second].plan.current_orient = 1;
+										}
+										else if(nx == 1 && ny == 0)//down
+										{
+											bots[time_left_to_move[i].second].plan.current_orient = 2;
+										}
+										else if(nx == 0 && ny == -1)//left
+										{
+											bots[time_left_to_move[i].second].plan.current_orient = 3;
+										}
+										if(!(nx==0 && ny==0))
+										{
+											if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==0)//moving straight
+											{
+												bots[time_left_to_move[i].second].plan.way_to_move = 0;
+												//bots[time_left_to_move[i].second].plan.iter_wait = 0 + rand()%3;
+												double rand_delay = rand()%600;
+												rand_delay = 300 - rand_delay;
+												bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
+												bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + rand_delay)/(100000000);
+											}
+											else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)%3==0)//moving 90 degree
+											{
+												bots[time_left_to_move[i].second].plan.way_to_move = 1;
+												//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
+												double rand_delay_straight = rand()%600;
+												rand_delay_straight = 300 - rand_delay_straight;
+												double rand_delay_turn = rand()%400;
+												rand_delay_turn = 200 - rand_delay_turn;
+												double rand_delay = rand_delay_straight + rand_delay_turn;
+												bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+												bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
+											}
+											else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==1)//moving 90 degree
+											{
+												bots[time_left_to_move[i].second].plan.way_to_move = 1;
+												double rand_delay_straight = rand()%600;
+												rand_delay_straight = 300 - rand_delay_straight;
+												double rand_delay_turn = rand()%400;
+												rand_delay_turn = 200 - rand_delay_turn;
+												double rand_delay = rand_delay_straight + rand_delay_turn;
+												bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+												bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
+												//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
+											}
+											else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==2)//moving 180 degree
+											{
+												bots[time_left_to_move[i].second].plan.way_to_move = 2;
+												double rand_delay_straight = rand()%600;
+												rand_delay_straight = 300 - rand_delay_straight;
+												double rand_delay_turn = rand()%400;
+												rand_delay_turn = 200 - rand_delay_turn;
+												double rand_delay = rand_delay_straight + rand_delay_turn;
+												bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
+												bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(100000000);
+												//bots[time_left_to_move[i].second].plan.iter_wait = 6 + rand()%3;
+											}
+										}
+									}
+									
+									bots[time_left_to_move[i].second].plan.time_spent_in_computation += (start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement);
+									time_since_last_movement = current_time - bots[time_left_to_move[i].second].plan.last_move_time - bots[time_left_to_move[i].second].plan.time_spent_in_computation;						       
+									//if((time_since_last_movement >= bots[time_left_to_move[i].second].plan.wait_time) && !check_collision_possibility(testbed, planners, bots, wheel_velocities, time_left_to_move[i].second) /*&& bots[time_left_to_move[i].second].plan.iter_wait <=0!*/) {
+									if(1){	       		
+										bots[time_left_to_move[i].second].plan.index_travelled++;
+										//bots[time_left_to_move[i].second].plan.updateMovementinSimulation(testbed);
+										planners[time_left_to_move[i].second] = bots[time_left_to_move[i].second].plan;
+										bots[time_left_to_move[i].second].plan.movement_made = 1;
+										bots[time_left_to_move[i].second].plan.time_spent_in_computation = 0;
+									}
+									else{	        	
+										bots[time_left_to_move[i].second].plan.movement_made = 0;
+									}        	
+								}    
+							}   					   	
+							end_movement = tic();
+							/*for(int i = 0; i < bots.size(); i++)
+							{	    
+								if(bots[i].plan.movement_made==1)
+								{
+									 bots[i].plan.last_move_time = end_movement;
 								}
-							      		
+										
 							}*/
 
 
 
-						   	
-						   	//bots[0].plan.drawGrid(image, planners);
-						   	//for(int i = 0;i<bots.size();i++){      	
-						    //    bots[i].plan.drawPath(image);        
-						    //}
-						    //for(int i = 0; i < bots.size(); i++)
-						    //{
-						    //	bots[i].plan.drawRobot(image);
-						    //}
-						    //imshow(windowName,image);
+							
+							//bots[0].plan.drawGrid(image, planners);
+							//for(int i = 0;i<bots.size();i++){      	
+							//    bots[i].plan.drawPath(image);        
+							//}
+							//for(int i = 0; i < bots.size(); i++)
+							//{
+							//	bots[i].plan.drawRobot(image);
+							//}
+							//imshow(windowName,image);
 							bool completed = 1;
-						    for(int i = 0; i < bots.size(); i++)
-						    {
-						    	if(bots[i].plan.path_points.size()!=(bots[i].plan.next_target_index))
-						    	{
-						    		completed = 0;
-						    		break;
-						    	}
-						    }
-						    if(!first_iter && completed == 1)
-						    {
-						    	cout<<"Coverage Completed!\n";
-						    	break;
-						    }
+							for(int i = 0; i < bots.size(); i++)
+							{
+								if(bots[i].plan.path_points.size()!=(bots[i].plan.next_target_index))
+								{
+									completed = 0;
+									break;
+								}
+							}
+							if(!first_iter && completed == 1)
+							{
+								cout<<"Coverage Completed!\n";
+								break;
+							}
 
-						    if(first_iter)
-						    {
-						     	first_iter = 0;
-						    }
-						    //if (cv::waitKey(1) == 27){
-						    //    break;//until escape is pressed
-						    //}
+							if(first_iter)
+							{
+								first_iter = 0;
+							}
+							//if (cv::waitKey(1) == 27){
+							//    break;//until escape is pressed
+							//}
 						}//while true
 						double end_t = tic();
 						bool succesful_termination = 1;
@@ -1829,47 +1846,47 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 						double covered_cells = 0;
 						for(int i = 0; i < bots[0].plan.rcells; i++)
 						{
-						  for(int j = 0; j < bots[0].plan.ccells; j++)
-						  {
-						   	if(bots[0].plan.isEmpty(i,j))
-						    {
-						        empty_cells++;
-						    }
-						  }    
+							for(int j = 0; j < bots[0].plan.ccells; j++)
+							{
+								if(bots[0].plan.isEmpty(i,j))
+								{
+									empty_cells++;
+								}
+							}    
 						}
 						if(succesful_termination!=1) problem_in_the_trial = 1;
 						for(int j = 0; j < bots.size(); j++)
 						{
 							if(problem_in_the_trial == 1) break;
 							for(int i = 0;i<bots[j].plan.total_points-1;i++){
-							    if((abs((bots[j].plan.path_points[i].x)-(bots[j].plan.path_points[i+1].x)) + abs((bots[j].plan.path_points[i].y)- (bots[j].plan.path_points[i+1].y)))>1)
-							    {
-							      problem_in_the_trial = 1;						      
-							      cout<<"manhattan_distance of target_grid_cell greater than 1\n";
-							      break;
-							    }						    
+								if((abs((bots[j].plan.path_points[i].x)-(bots[j].plan.path_points[i+1].x)) + abs((bots[j].plan.path_points[i].y)- (bots[j].plan.path_points[i+1].y)))>1)
+								{
+									problem_in_the_trial = 1;						      
+									cout<<"manhattan_distance of target_grid_cell greater than 1\n";
+									break;
+								}						    
 							}
 							if(problem_in_the_trial == 1) break;
 						}	
 						
 						if(problem_in_the_trial) break;
-	  					//imshow(windowName,image);
-	  					int min_length = 100000000;
-				    	int max_length = 0;
-				    	for(int i = 0; i < bots.size(); i++)
-				    	{
-				    		if(bots[i].plan.path_points.size()<min_length)
-				    		{
-				    			min_length = bots[i].plan.path_points.size();
-				    		}
-				    		if(bots[i].plan.path_points.size() > max_length)
-				    		{
-				    			max_length = bots[i].plan.path_points.size();
-				    		}
-				    	}
-				    	path_length_range[d] = max_length-min_length;		    	
+						//imshow(windowName,image);
+						int min_length = 100000000;
+						int max_length = 0;
+						for(int i = 0; i < bots.size(); i++)
+						{
+							if(bots[i].plan.path_points.size()<min_length)
+							{
+								min_length = bots[i].plan.path_points.size();
+							}
+							if(bots[i].plan.path_points.size() > max_length)
+							{
+								max_length = bots[i].plan.path_points.size();
+							}
+						}
+						path_length_range[d] = max_length-min_length;		    	
 
-	  					vector <vector<int>> coverage(bots[0].plan.rcells);
+						vector <vector<int>> coverage(bots[0].plan.rcells);
 						for(int i = 0; i < bots[0].plan.rcells; i++)
 						{
 							coverage[i].resize(bots[0].plan.ccells);
@@ -1923,13 +1940,13 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 					if(problem_in_the_trial) break;
 					//values to be logged here
 					for(int i = 0; i < number_of_algos; i++)
-						{
-							repetedsteps[a][c][number_of_trials-trials].push_back(repeatedCoverage[i]);
-							range_of_path_length[a][c][number_of_trials-trials].push_back(path_length_range[i]);	
-							percentage_coverage[a][c][number_of_trials-trials].push_back(percent_Covered[i]);
-							termination_time[a][c][number_of_trials-trials].push_back(completion_time[i]);
-						}	
-											
+					{
+						repetedsteps[a][c][number_of_trials-trials].push_back(repeatedCoverage[i]);
+						range_of_path_length[a][c][number_of_trials-trials].push_back(path_length_range[i]);	
+						percentage_coverage[a][c][number_of_trials-trials].push_back(percent_Covered[i]);
+						termination_time[a][c][number_of_trials-trials].push_back(completion_time[i]);
+					}	
+
 				}//for c, communication range
 				if(problem_in_the_trial) continue;			
 				
@@ -2018,165 +2035,165 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 			case 1: path = "../Results/Office/"; break;
 		}	
 		
-			cout<<"path: "<<path<<endl;
-			cout<<"*************\n";
-			cout<<"Map #"<<a<<endl<<endl<<endl;
-			cout<<"*************\n";
+		cout<<"path: "<<path<<endl;
+		cout<<"*************\n";
+		cout<<"Map #"<<a<<endl<<endl<<endl;
+		cout<<"*************\n";
 
 
-			cout<<"Redundant Coverage: "<<endl;
-			save_address = path +"RedundantCoverage.csv";		
-			outputFile.open(save_address);
-			for(int c = 0; c < comm_ranges.size(); c++)
+		cout<<"Redundant Coverage: "<<endl;
+		save_address = path +"RedundantCoverage.csv";		
+		outputFile.open(save_address);
+		for(int c = 0; c < comm_ranges.size(); c++)
+		{
+			outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
+			outputFile<<endl;
+			for(int i = 0; i < number_of_trials + 3; i++)
 			{
-				outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
-				outputFile<<endl;
-				for(int i = 0; i < number_of_trials + 3; i++)
-				{
 				
-					l = 0;
-					for(int j = 0; j < repetedsteps[a][c][i].size(); j++)
+				l = 0;
+				for(int j = 0; j < repetedsteps[a][c][i].size(); j++)
+				{
+					if(i==number_of_trials)
 					{
-						if(i==number_of_trials)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-							continue;
-						}
-						outputFile<<repetedsteps[a][c][i][j]<<",";
-						cout<<repetedsteps[a][c][i][j]<<" ";
-						l++;
-						l%=number_of_algos;
-						if(l==0)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-						}
+						outputFile<<" "<<",";
+						cout<<"** ";
+						continue;
 					}
-					outputFile<<endl;
-					cout<<endl;
+					outputFile<<repetedsteps[a][c][i][j]<<",";
+					cout<<repetedsteps[a][c][i][j]<<" ";
+					l++;
+					l%=number_of_algos;
+					if(l==0)
+					{
+						outputFile<<" "<<",";
+						cout<<"** ";
+					}
 				}
-				outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
-				cout<<endl<<endl<<endl<<endl<<endl<<endl;				
+				outputFile<<endl;
+				cout<<endl;
 			}
-			outputFile.close();	
-			cout<<endl;
-			
-			cout<<"range_of_path_length: "<<endl;
-			save_address = path +"range_of_path_length.csv";
-			outputFile.open(save_address);
-			
-			for(int c = 0; c < comm_ranges.size(); c++)
-			{
-				outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
-				outputFile<<endl;
-				for(int i = 0; i < number_of_trials + 3; i++)
-				{
-					l = 0;
-					for(int j = 0; j < range_of_path_length[a][c][i].size(); j++)
-					{
-						if(i==number_of_trials)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-							continue;
-						}
-					
-						outputFile<<range_of_path_length[a][c][i][j]<<",";
-						cout<<range_of_path_length[a][c][i][j]<<" ";
-						l++;
-						l%=number_of_algos;
-						if(l==0)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-						}
-					}
-					outputFile<<endl;
-					cout<<endl;
-				}		
-				outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
-				cout<<endl<<endl<<endl<<endl<<endl<<endl;				
-			}
-			outputFile.close();
-			cout<<endl;
-			
+			outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
+			cout<<endl<<endl<<endl<<endl<<endl<<endl;				
+		}
+		outputFile.close();	
+		cout<<endl;
 
-			cout<<"percentCoverage: "<<endl;
-			save_address = path +"percent_coverage.csv";
-			outputFile.open(save_address);
-			for(int c = 0; c < comm_ranges.size(); c++)
-			{
-				outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
-				outputFile<<endl;
-				for(int i = 0; i < number_of_trials + 3; i++)
-				{
-					l = 0;
-					for(int j = 0; j < percentage_coverage[a][c][i].size(); j++)
-					{
-						if(i==number_of_trials)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-							continue;
-						}
-					
-						outputFile<<percentage_coverage[a][c][i][j]<<",";
-						cout<<percentage_coverage[a][c][i][j]<<" ";
-						l++;
-						l%=number_of_algos;
-						if(l==0)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-						}
-					}
-					outputFile<<endl;
-					cout<<endl;
-				}	
-				outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
-				cout<<endl<<endl<<endl<<endl<<endl<<endl;	
-			}		
-			outputFile.close();
-			cout<<endl;
+		cout<<"range_of_path_length: "<<endl;
+		save_address = path +"range_of_path_length.csv";
+		outputFile.open(save_address);
 
-			cout<<"termination_time: "<<endl;
-			save_address = path +"termination_time.csv";
-			outputFile.open(save_address);
-			for(int c = 0; c < comm_ranges.size(); c++)
+		for(int c = 0; c < comm_ranges.size(); c++)
+		{
+			outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
+			outputFile<<endl;
+			for(int i = 0; i < number_of_trials + 3; i++)
 			{
-				outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
-				outputFile<<endl;
-				for(int i = 0; i < number_of_trials + 3; i++)
+				l = 0;
+				for(int j = 0; j < range_of_path_length[a][c][i].size(); j++)
 				{
-					l = 0;
-					for(int j = 0; j < termination_time[a][c][i].size(); j++)
+					if(i==number_of_trials)
 					{
-						if(i==number_of_trials)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-							continue;
-						}
-					
-						outputFile<<termination_time[a][c][i][j]<<",";
-						cout<<termination_time[a][c][i][j]<<" ";
-						l++;
-						l%=number_of_algos;
-						if(l==0)
-						{
-							outputFile<<" "<<",";
-							cout<<"** ";
-						}
+						outputFile<<" "<<",";
+						cout<<"** ";
+						continue;
 					}
-					outputFile<<endl;
-					cout<<endl;
-				}	
-				outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
-				cout<<endl<<endl<<endl<<endl<<endl<<endl;	
+					
+					outputFile<<range_of_path_length[a][c][i][j]<<",";
+					cout<<range_of_path_length[a][c][i][j]<<" ";
+					l++;
+					l%=number_of_algos;
+					if(l==0)
+					{
+						outputFile<<" "<<",";
+						cout<<"** ";
+					}
+				}
+				outputFile<<endl;
+				cout<<endl;
 			}		
-			outputFile.close();
-			cout<<endl;
+			outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
+			cout<<endl<<endl<<endl<<endl<<endl<<endl;				
+		}
+		outputFile.close();
+		cout<<endl;
+
+
+		cout<<"percentCoverage: "<<endl;
+		save_address = path +"percent_coverage.csv";
+		outputFile.open(save_address);
+		for(int c = 0; c < comm_ranges.size(); c++)
+		{
+			outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
+			outputFile<<endl;
+			for(int i = 0; i < number_of_trials + 3; i++)
+			{
+				l = 0;
+				for(int j = 0; j < percentage_coverage[a][c][i].size(); j++)
+				{
+					if(i==number_of_trials)
+					{
+						outputFile<<" "<<",";
+						cout<<"** ";
+						continue;
+					}
+					
+					outputFile<<percentage_coverage[a][c][i][j]<<",";
+					cout<<percentage_coverage[a][c][i][j]<<" ";
+					l++;
+					l%=number_of_algos;
+					if(l==0)
+					{
+						outputFile<<" "<<",";
+						cout<<"** ";
+					}
+				}
+				outputFile<<endl;
+				cout<<endl;
+			}	
+			outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
+			cout<<endl<<endl<<endl<<endl<<endl<<endl;	
+		}		
+		outputFile.close();
+		cout<<endl;
+
+		cout<<"termination_time: "<<endl;
+		save_address = path +"termination_time.csv";
+		outputFile.open(save_address);
+		for(int c = 0; c < comm_ranges.size(); c++)
+		{
+			outputFile<<"Comunication range: "<<comm_ranges[c]*2<<",";
+			outputFile<<endl;
+			for(int i = 0; i < number_of_trials + 3; i++)
+			{
+				l = 0;
+				for(int j = 0; j < termination_time[a][c][i].size(); j++)
+				{
+					if(i==number_of_trials)
+					{
+						outputFile<<" "<<",";
+						cout<<"** ";
+						continue;
+					}
+					
+					outputFile<<termination_time[a][c][i][j]<<",";
+					cout<<termination_time[a][c][i][j]<<" ";
+					l++;
+					l%=number_of_algos;
+					if(l==0)
+					{
+						outputFile<<" "<<",";
+						cout<<"** ";
+					}
+				}
+				outputFile<<endl;
+				cout<<endl;
+			}	
+			outputFile<<endl<<endl<<endl<<endl<<endl<<endl;
+			cout<<endl<<endl<<endl<<endl<<endl<<endl;	
+		}		
+		outputFile.close();
+		cout<<endl;
 		
 		
 		
@@ -2602,604 +2619,613 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 
 
 int main(int argc, char* argv[]) {
-  bool get_results = false;
+	bool get_results = false;
  //get_results = false;
-  if(get_results)
-  {
-  	//getSimulatioResults(1, 20, 5);//number of maps, trials, algos
-  	getSimulatioResults2(1, 20, 5);
-  	return 0;
-  }
-  AprilInterfaceAndVideoCapture testbed;  
-  int frame = 0;
-  int first_iter = 1;
-  double last_t = tic();
-  const char *windowName = "Arena";
-  cv::namedWindow(windowName,WINDOW_NORMAL);
- 
-  cv::Mat image;
-  cv::Mat image_gray;
-  
-  //image = imread("../Maps/Basic.png");
-  //cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
-
-  int robotCount = 4;  
-  cout<<"Enter the number of robots: ";
-  cin>>robotCount;
-  
-  //tag id should also not go beyond max_robots
- /* vector<vector<nd>> tp;//a map that would be shared among all
-  vector<bot_config> bots(robotCount,bot_config(10, 10,130,tp));
-  vector<PathPlannerGrid> planners(robotCount,PathPlannerGrid(tp));
-*/
-
-
-  vector <vector<vector<nd>>> tp(robotCount);
-  vector<bot_config> bots;
-  vector<PathPlannerGrid> planners;
-  for(int i = 0; i < robotCount; i++)
-  {
-  	bots.push_back(bot_config(10, 10,130,tp[i]));
-  	planners.push_back(PathPlannerGrid(tp[i]));
-  }
-
-
-
-  int algo_select;
-  cout<<"\nSelect the Algorithm\n" 
-  "1: BSA-CM (Basic)\n" 
-  "2: SSB\n"   
-  "3: BoB\n"
-  "4: MDFS\n"
-  "5: Brick And Mortar\n"
-  "6: Boustrophedon Motion With Updated Bactrack Search\n"
-  "7: Boustrophedon Motion With BSA_CM like Backtracking\n" 
-  "8: S-MSTC\n"
-  "9: ANTS\n"
-  "\nEnter here: ";
-  int bots_in_same_cell = 0;
-  cin>>algo_select;
-
-
-  int repeatedCoverage = 0;
-  double total_path_length = 0; // in feets
-  int total_iterations = 0;
-  double total_completion_time = 0;
-  //double total_computation_time = 0;
-  double time_to_compute = 0;
-  double total_movement_time = 0;
-  double start_movement = 0;
-  double end_movement = 0;
-
-  double move_straight_time = 2680;//sec x 1000, divide by 10-^8 to get it into system clock range
-  double turn_quarter_time = 1496;//sec = 1000, divide by 10-^8 to get it into system clock range
-
-  double final_completion_time = 0;
-  bool final_complete = 0;
-
-  double start_t = tic();
-  int wait_count = 0;
-  int move_count = 0;
-  int comm_dist = 5;
-  cout<<"Enter the comm_dist: ";
-  cin>>comm_dist;
-  while (true){    
-  	total_iterations++;
-    image = imread("../Maps/Basic.png");
-  	cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
-
-   /* if(first_iter){
-      bots[0].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
-      for(int i = 1;i<bots.size();i++){
-        bots[i].plan.rcells = bots[0].plan.rcells;
-        bots[i].plan.ccells = bots[0].plan.ccells;
-      }
-     //srand(time(0));
-      for(int i = 0; i < bots.size(); i++)
-      {
-      	int r = rand()%bots[0].plan.rcells;
-      	int c = rand()%bots[0].plan.ccells;
-      	while((bots[0].plan.isBlocked(r, c)))
-      	{
-      		r = rand()%bots[0].plan.rcells;
-      		c = rand()%bots[0].plan.ccells;
-      	}
-      	//bots[i].plan.path_points.push_back(pt(r, c));
-      	bots[i].plan.addGridCellToPath(r, c, testbed);
-      	bots[i].plan.world_grid[r][c].steps = 1;      	
-      	bots[i].pose.x = r{
-;
-      	bots[i].pose.y = c;
-      	bots[i].pose.omega = rand()%4;
-      	bots[i].plan.current_orient = bots[i].pose.omega;
-      	bots[i].plan.robot_id = i;
-      	bots[i].plan.robot_tag_id = i;
-      }
-    }
-*/
-    if(first_iter){     
-     srand(time(0));
-      for(int i = 0; i < bots.size(); i++)
-      {
-      	bots[i].plan.overlayGrid(testbed.detections,image_gray);
-      	int r = rand()%bots[i].plan.rcells;
-      	int c = rand()%bots[i].plan.ccells;
-      	while((bots[i].plan.isBlocked(r, c)))
-      	{
-      		r = rand()%bots[i].plan.rcells;
-      		c = rand()%bots[i].plan.ccells;
-      	}
-      	//bots[i].plan.path_points.push_back(pt(r, c));
-      	bots[i].plan.addGridCellToPath(r, c, testbed);
-      	bots[i].plan.world_grid[r][c].steps = 1;      	
-      	bots[i].pose.x = r;
-      	bots[i].pose.y = c;
-      	bots[i].pose.omega = rand()%4;
-      	bots[i].plan.current_orient = bots[i].pose.omega;
-      	bots[i].plan.robot_id = i;
-      	bots[i].plan.robot_tag_id = i;
-      	bots[i].plan.comm_dist = comm_dist;//feets
-      }
-    }
-
-
-    
- 
-    for(int i = 0;i<bots.size();i++){      
-      planners[i] = bots[i].plan;
-    }
-    
-    double compute_start = tic();
-    for(int i = 0;i<bots.size();i++){
-      bots[i].plan.wait_to_plan = 0;
-      cout<<i<<": ";
-      switch(algo_select)
-      {
-      case 1: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners); break;
-      case 2: bots[i].plan.SSB(testbed,bots[i].pose, 2.5,planners); break;      
-      case 3: bots[i].plan.BoB(testbed,bots[i].pose, 2.5,planners); break; 
-      case 4: bots[i].plan.MDFS(testbed,bots[i].pose, 2.5,planners); break;
-      case 5: bots[i].plan.BrickAndMortar(testbed,bots[i].pose, 2.5,planners); break; 
-      case 6: bots[i].plan.BoustrophedonMotionWithUpdatedBactrackSelection(testbed,bots[i].pose, 2.5,planners); break;
-      case 7: bots[i].plan.BoustrophedonMotionWithBSA_CMlikeBacktracking(testbed,bots[i].pose, 2.5,planners); break;    
-      case 8: bots[i].plan.S_MSTC(testbed,bots[i].pose, 2.5,planners); break;
-      case 9: bots[i].plan.ANTS(testbed,bots[i].pose, 2.5,planners); break;     
-      default: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);   
-      }
-      planners[i] = bots[i].plan;    
-    } 
-    double compute_end  = tic();
-    time_to_compute += (compute_end-compute_start);
-
-    vector <pair<double, int>> time_left_to_move(bots.size());
-    double time_since_last_movement;
-    double current_time = tic();    
-	if(!first_iter)
+	if(get_results)
 	{
+	//getSimulatioResults(1, 20, 5);//number of maps, trials, algos
+		getSimulatioResults2(1, 20, 5);
+		return 0;
+	}
+	AprilInterfaceAndVideoCapture testbed;  
+	int frame = 0;
+	int first_iter = 1;
+	double last_t = tic(); //Current system time
+	const char *windowName = "Arena";
+	cv::namedWindow(windowName,WINDOW_NORMAL);
+
+	cv::Mat image;
+	cv::Mat image_gray;
+	
+	//image = imread("../Maps/Basic.png");
+	//cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+
+	int robotCount = 4;  
+	cout<<"Enter the number of robots: ";
+	cin>>robotCount;
+	
+	//tag id should also not go beyond max_robots
+ /* vector<vector<nd>> tp;//a map that would be shared among all
+	vector<bot_config> bots(robotCount,bot_config(10, 10,130,tp));
+	vector<PathPlannerGrid> planners(robotCount,PathPlannerGrid(tp));
+*/
+
+
+	vector <vector<vector<nd>>> tp(robotCount);
+	//a map shared between all robots 
+	vector<bot_config> bots;
+	vector<PathPlannerGrid> planners;
+	for(int i = 0; i < robotCount; i++)
+	{
+		bots.push_back(bot_config(10, 10,130,tp[i]));
+		planners.push_back(PathPlannerGrid(tp[i]));
+	}
+
+
+
+	int algo_select;
+	cout<<"\nSelect the Algorithm\n" 
+	"1: BSA-CM (Basic)\n" 
+	"2: SSB\n"   
+	"3: BoB\n"
+	"4: MDFS\n"
+	"5: Brick And Mortar\n"
+	"6: Boustrophedon Motion With Updated Bactrack Search\n"
+	"7: Boustrophedon Motion With BSA_CM like Backtracking\n" 
+	"8: S-MSTC\n"
+	"9: ANTS\n"
+	"\nEnter here: ";
+	int bots_in_same_cell = 0;
+	cin>>algo_select;
+
+
+	int repeatedCoverage = 0;
+	double total_path_length = 0; // in feet
+	int total_iterations = 0;
+	double total_completion_time = 0;
+	//double total_computation_time = 0;
+	double time_to_compute = 0;
+	double total_movement_time = 0;
+	double start_movement = 0;
+	double end_movement = 0;
+
+	double move_straight_time = 2680;//sec x 1000, divide by 10-^8 to get it into system clock range
+	double turn_quarter_time = 1496;//sec = 1000, divide by 10-^8 to get it into system clock range
+
+	double final_completion_time = 0;
+	bool final_complete = 0;
+
+	double start_t = tic();
+	int wait_count = 0;
+	int move_count = 0;
+	int comm_dist = 5;
+	cout<<"Enter the comm_dist: ";
+	cin>>comm_dist;
+	//Not sure what this is at the moment
+
+	while (true){    
+		//main loop
+		total_iterations++;
+
+		image = imread("../Maps/Basic.png");
+		cvtColor(image, image_gray, cv::COLOR_BGR2GRAY);
+		//not sure why this CV stuff is being done in the loop and not before
+
+	 /* if(first_iter){
+		bots[0].plan.overlayGrid(testbed.detections,image_gray);//overlay grid completely reintialize the grid, we have to call it once at the beginning only when all robots first seen simultaneously(the surrounding is assumed to be static) not every iteration
+		for(int i = 1;i<bots.size();i++){
+		bots[i].plan.rcells = bots[0].plan.rcells;
+		bots[i].plan.ccells = bots[0].plan.ccells;
+		}
+	 //srand(time(0));
 		for(int i = 0; i < bots.size(); i++)
-		{	
+		{
+		int r = rand()%bots[0].plan.rcells;
+		int c = rand()%bots[0].plan.ccells;
+		while((bots[0].plan.isBlocked(r, c)))
+		{
+			r = rand()%bots[0].plan.rcells;
+			c = rand()%bots[0].plan.ccells;
+		}
+		//bots[i].plan.path_points.push_back(pt(r, c));
+		bots[i].plan.addGridCellToPath(r, c, testbed);
+		bots[i].plan.world_grid[r][c].steps = 1;      	
+		bots[i].pose.x = r{
+;
+		bots[i].pose.y = c;
+		bots[i].pose.omega = rand()%4;
+		bots[i].plan.current_orient = bots[i].pose.omega;
+		bots[i].plan.robot_id = i;
+		bots[i].plan.robot_tag_id = i;
+		}
+	}
+*/
+		if(first_iter){
+			//spawning robots with random orientations and locations
+			srand(time(0));
+			for(int i = 0; i < bots.size(); i++)
+			{
+				bots[i].plan.overlayGrid(testbed.detections,image_gray);
+				int r = rand()%bots[i].plan.rcells;
+				int c = rand()%bots[i].plan.ccells;
+				while((bots[i].plan.isBlocked(r, c)))
+				{
+					r = rand()%bots[i].plan.rcells;
+					c = rand()%bots[i].plan.ccells;
+				}
+		//bots[i].plan.path_points.push_back(pt(r, c));
+				bots[i].plan.addGridCellToPath(r, c, testbed);
+				bots[i].plan.world_grid[r][c].steps = 1;      	
+				bots[i].pose.x = r;
+				bots[i].pose.y = c;
+				bots[i].pose.omega = rand()%4;
+				bots[i].plan.current_orient = bots[i].pose.omega;
+				bots[i].plan.robot_id = i;
+				bots[i].plan.robot_tag_id = i;
+				bots[i].plan.comm_dist = comm_dist;//feets
+			}
+		}
+
+
+		for(int i = 0;i<bots.size();i++){      
+			//putting things in the planners vector for easy access?
+			planners[i] = bots[i].plan;
+		}
+
+		double compute_start = tic();
+		for(int i = 0;i<bots.size();i++){
+			bots[i].plan.wait_to_plan = 0;
+			cout<<i<<": ";
+			switch(algo_select)
+			//decides the next move for the ith bot conditional on the plans of all other bots
+			{
+				case 1: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners); break;
+				case 2: bots[i].plan.SSB(testbed,bots[i].pose, 2.5,planners); break;      
+				case 3: bots[i].plan.BoB(testbed,bots[i].pose, 2.5,planners); break; 
+				case 4: bots[i].plan.MDFS(testbed,bots[i].pose, 2.5,planners); break;
+				case 5: bots[i].plan.BrickAndMortar(testbed,bots[i].pose, 2.5,planners); break; 
+				case 6: bots[i].plan.BoustrophedonMotionWithUpdatedBactrackSelection(testbed,bots[i].pose, 2.5,planners); break;
+				case 7: bots[i].plan.BoustrophedonMotionWithBSA_CMlikeBacktracking(testbed,bots[i].pose, 2.5,planners); break;    
+				case 8: bots[i].plan.S_MSTC(testbed,bots[i].pose, 2.5,planners); break;
+				case 9: bots[i].plan.ANTS(testbed,bots[i].pose, 2.5,planners); break;     
+				default: bots[i].plan.BSACoverageIncremental(testbed,bots[i].pose, 2.5,planners);   
+			}
+			//keeps planners up to date
+			planners[i] = bots[i].plan;    
+		} 
+		double compute_end  = tic();
+		time_to_compute += (compute_end-compute_start);
+		//adds the computation time to the counter
+
+		vector <pair<double, int>> time_left_to_move(bots.size());
+		double time_since_last_movement;
+		double current_time = tic();    
+		if(!first_iter)
+		{
+			for(int i = 0; i < bots.size(); i++)
+			{	
 			bots[i].plan.bot_start_movement=/*tic()*/current_time;
-			bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
-        	if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
-        	{
-        	 	bots[i].plan.time_spent_in_computation += (bots[i].plan.bot_start_movement-end_movement);	
+				bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
+				if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
+				{
+					bots[i].plan.time_spent_in_computation += (bots[i].plan.bot_start_movement-end_movement);	
 				//current_time = tic();
-				time_since_last_movement = current_time - bots[i].plan.last_move_time - bots[i].plan.time_spent_in_computation;
-				time_left_to_move[i].first = bots[i].plan.wait_time-time_since_last_movement;
-				time_left_to_move[i].second = bots[i].plan.robot_tag_id;
+					time_since_last_movement = current_time - bots[i].plan.last_move_time - bots[i].plan.time_spent_in_computation;
+					time_left_to_move[i].first = bots[i].plan.wait_time-time_since_last_movement;
+					time_left_to_move[i].second = bots[i].plan.robot_tag_id;
 				/*cout<<"robot id: "<<bots[i].plan.robot_tag_id<<endl;
-		        cout<<"wait time: "<<bots[i].plan.wait_time<<endl;
+				cout<<"wait time: "<<bots[i].plan.wait_time<<endl;
 				cout<<"time since last movement: "<<time_since_last_movement<<endl;	 */
-	        }
-	        else
-	        {
-	        	time_left_to_move[i].first = 100000000;
-				time_left_to_move[i].second = bots[i].plan.robot_tag_id;
-	        }
-	        
+				}
+				else
+				{
+					time_left_to_move[i].first = 100000000;
+					time_left_to_move[i].second = bots[i].plan.robot_tag_id;
+				}
+
+			}
+
+		}
+
+		sort(time_left_to_move.begin(), time_left_to_move.end());
+	 /* for(int i = 0; i < bots.size(); i++)
+	{
+		bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
+		if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
+		{
+			cout<<"time: "<< time_left_to_move[i].first<<" id: "<<time_left_to_move[i].second<<endl;
 		}
 		
 	}
-
-    sort(time_left_to_move.begin(), time_left_to_move.end());
-   /* for(int i = 0; i < bots.size(); i++)
-    {
-    	bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
-    	if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
-    	{
-    		cout<<"time: "<< time_left_to_move[i].first<<" id: "<<time_left_to_move[i].second<<endl;
-    	}
-    	
-    }
 */
-      
 
-    /*cout<<"start_movement: "<<start_movement<<endl;
-    cout<<"end_movementL: "<<end_movement<<endl;
-    cout<<"start_movement - end_movement: "<<start_movement-end_movement<<endl;*/
-    // pair <int, int> wheel_velocities;//dummy variable in case of simulation
-    // for(int i = 0;i<bots.size();i++){    
-    //     bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
-    //     if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
-    //     {
-    //     	if(bots[i].plan.movement_made==1 && !first_iter)
-	   //      {
-	   //      	cout<<"wait time changed!\n";
-	   //      	bots[i].plan.last_orient = bots[i].plan.current_orient;
-	   //      	int nx = bots[i].plan.path_points[bots[i].plan.next_target_index].x - bots[i].plan.path_points[bots[i].plan.next_target_index-1].x;
-	   //      	int ny = bots[i].plan.path_points[bots[i].plan.next_target_index].y - bots[i].plan.path_points[bots[i].plan.next_target_index-1].y;
-	   //      	if(nx==0 && ny==0) bots[i].plan.iter_wait = 0;
-	   //      	else if(nx == -1 && ny == 0 )//up
-	   //      	{
-	   //      		bots[i].plan.current_orient = 0;	        	
-	   //      	}
-	   //      	else if(nx == 0 && ny == 1)//right
-	   //      	{
-	   //      		bots[i].plan.current_orient = 1;
-	   //      	}
-	   //      	else if(nx == 1 && ny == 0)//down
-	   //      	{
-	   //      		bots[i].plan.current_orient = 2;
-	   //      	}
-	   //      	else if(nx == 0 && ny == -1)//left
-	   //      	{
-	   //      		bots[i].plan.current_orient = 3;
-	   //      	}
-	   //      	if(!(nx==0 && ny==0))
-	   //      	{
-	   //      		if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)==0)//moving straight
-	   //      		{
-	   //      			bots[i].plan.way_to_move = 0;
-	   //      			//bots[i].plan.iter_wait = 0 + rand()%3;
-	   //      			double rand_delay = rand()%600;
-	   //      			rand_delay = 300 - rand_delay;
-	   //      			bots[i].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
-	   //      			bots[i].plan.wait_time = (move_straight_time + rand_delay)/(10000000);
-	   //      		}
-	   //      		else if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)%3==0)//moving 90 degree
-	   //      		{
-	   //      			bots[i].plan.way_to_move = 1;
-	   //      			//bots[i].plan.iter_wait = 3 + rand()%3;
-	   //      			double rand_delay_straight = rand()%600;
-	   //      			rand_delay_straight = 300 - rand_delay_straight;
-	   //      			double rand_delay_turn = rand()%400;
-	   //      			rand_delay_turn = 200 - rand_delay_turn;
-	   //      			double rand_delay = rand_delay_straight + rand_delay_turn;
-	   //      			bots[i].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-	   //      			bots[i].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(10000000);
-	   //      		}
-	   //      		else if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)==1)//moving 90 degree
-	   //      		{
-	   //      			bots[i].plan.way_to_move = 1;
-	   //      			double rand_delay_straight = rand()%600;
-	   //      			rand_delay_straight = 300 - rand_delay_straight;
-	   //      			double rand_delay_turn = rand()%400;
-	   //      			rand_delay_turn = 200 - rand_delay_turn;
-	   //      			double rand_delay = rand_delay_straight + rand_delay_turn;
-	   //      			bots[i].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-	   //      			bots[i].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(10000000);
-	   //      			//bots[i].plan.iter_wait = 3 + rand()%3;
-	   //      		}
-	   //      		else if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)==2)//moving 180 degree
-	   //      		{
-	   //      			bots[i].plan.way_to_move = 2;
-	   //      			double rand_delay_straight = rand()%600;
-	   //      			rand_delay_straight = 300 - rand_delay_straight;
-	   //      			double rand_delay_turn = rand()%400;
-	   //      			rand_delay_turn = 200 - rand_delay_turn;
-	   //      			double rand_delay = rand_delay_straight + rand_delay_turn;
-	   //      			bots[i].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
-	   //      			bots[i].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(10000000);
-	   //      			//bots[i].plan.iter_wait = 6 + rand()%3;
-	   //      		}
-	   //      	}
-	   //      }
-	   //      start_movement = tic();
-	   //      cout<<"start_movement-bots[i].plan.bot_start_movement: "<<start_movement-bots[i].plan.bot_start_movement<<endl;
-	   //      bots[i].plan.time_spent_in_computation += (start_movement-bots[i].plan.bot_start_movement);
-	   //      current_time = tic();
-	   //      time_since_last_movement = current_time - bots[i].plan.last_move_time - bots[i].plan.time_spent_in_computation;
-	   //      cout<<"*******????????????***********\n";
-	   //      cout<<"robot id: "<<bots[i].plan.robot_tag_id<<endl;
-	   //      cout<<"wait time: "<<bots[i].plan.wait_time<<endl;
-	   //      cout<<"current_time: "<<current_time<<endl;
-	   //      cout<<"last_move time: "<<bots[i].plan.last_move_time<<endl;
-	   //      cout<<"time spent in computation: "<<bots[i].plan.time_spent_in_computation<<endl;
-	   //      cout<<"time since last movement: "<<time_since_last_movement<<endl;
-	   //      cout<<"*******????????????***********\n";
-    //     	if(!check_collision_possibility(testbed, planners, bots, wheel_velocities, i) && time_since_last_movement >= bots[i].plan.wait_time /*&& bots[i].plan.iter_wait <=0!*/) {
-    //     		cout<<"Moving to next: \n";
-    //     		cout<<"type of movement: "<<endl;
-    //     		switch(bots[i].plan.way_to_move)
-    //     		{
-    //     			case 0: cout<<"straight\n";break;
-    //     			case 1: cout<<"turn 90 degree\n";break;
-    //     			case 2: cout<<"turn 180 degree\n";break;
-    //     		}
-    //     		bots[i].plan.index_travelled++;
-    //     		bots[i].plan.updateMovementinSimulation(testbed);
-    //    			planners[i] = bots[i].plan;
-    //     		bots[i].plan.movement_made = 1;
-    //     		bots[i].plan.time_spent_in_computation = 0;
-    //     		bots[i].plan.last_move_time = tic();
-    //     	}
-    //     	else{
-    //     	//bots[i].plan.iter_wait--; 
-    //     	cout<<"Had to wait!\n"<<endl;
-    //     	cout<<"type of movement: "<<endl;
-    //     	switch(bots[i].plan.way_to_move)
-    //     		{
-    //     			case 0: cout<<"straight\n";break;
-    //     			case 1: cout<<"turn 90 degree\n";break;
-    //     			case 2: cout<<"turn 180 degree\n";break;
-    //     		}
-    //     	bots[i].plan.movement_made = 0;
-    //     	}   	
-    //     }     
-   	// }
-   	start_movement = tic();
-   	current_time = tic();
 
-   	pair <int, int> wheel_velocities;//dummy variable in case of simulation
-    for(int i = 0;i<bots.size();i++){    
-        bots[time_left_to_move[i].second].plan.next_target_index = bots[time_left_to_move[i].second].plan.index_travelled+1;
-        if((bots[time_left_to_move[i].second].plan.next_target_index) != bots[time_left_to_move[i].second].plan.path_points.size())
-        {
-        	cout<<"id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
-        	if(bots[time_left_to_move[i].second].plan.movement_made==1 && !first_iter)
-	        {
-	        	//cout<<"wait time changed!\n";
-	        	bots[time_left_to_move[i].second].plan.last_orient = bots[time_left_to_move[i].second].plan.current_orient;
-	        	int nx = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].x - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].x;
-	        	int ny = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].y - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].y;
-	        	if(nx==0 && ny==0) bots[time_left_to_move[i].second].plan.iter_wait = 0;
-	        	else if(nx == -1 && ny == 0 )//up
-	        	{
-	        		bots[time_left_to_move[i].second].plan.current_orient = 0;	        	
-	        	}
-	        	else if(nx == 0 && ny == 1)//right
-	        	{
-	        		bots[time_left_to_move[i].second].plan.current_orient = 1;
-	        	}
-	        	else if(nx == 1 && ny == 0)//down
-	        	{
-	        		bots[time_left_to_move[i].second].plan.current_orient = 2;
-	        	}
-	        	else if(nx == 0 && ny == -1)//left
-	        	{
-	        		bots[time_left_to_move[i].second].plan.current_orient = 3;
-	        	}
-	        	if(!(nx==0 && ny==0))
-	        	{
-	        		if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==0)//moving straight
-	        		{
-	        			bots[time_left_to_move[i].second].plan.way_to_move = 0;
-	        			//bots[time_left_to_move[i].second].plan.iter_wait = 0 + rand()%3;
-	        			double rand_delay = rand()%600;
-	        			rand_delay = 300 - rand_delay;
-	        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
-	        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + rand_delay)/(100000000);
-	        		}
-	        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)%3==0)//moving 90 degree
-	        		{
-	        			bots[time_left_to_move[i].second].plan.way_to_move = 1;
-	        			//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
-	        			double rand_delay_straight = rand()%600;
-	        			rand_delay_straight = 300 - rand_delay_straight;
-	        			double rand_delay_turn = rand()%400;
-	        			rand_delay_turn = 200 - rand_delay_turn;
-	        			double rand_delay = rand_delay_straight + rand_delay_turn;
-	        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-	        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
-	        		}
-	        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==1)//moving 90 degree
-	        		{
-	        			bots[time_left_to_move[i].second].plan.way_to_move = 1;
-	        			double rand_delay_straight = rand()%600;
-	        			rand_delay_straight = 300 - rand_delay_straight;
-	        			double rand_delay_turn = rand()%400;
-	        			rand_delay_turn = 200 - rand_delay_turn;
-	        			double rand_delay = rand_delay_straight + rand_delay_turn;
-	        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
-	        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
-	        			//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
-	        		}
-	        		else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==2)//moving 180 degree
-	        		{
-	        			bots[time_left_to_move[i].second].plan.way_to_move = 2;
-	        			double rand_delay_straight = rand()%600;
-	        			rand_delay_straight = 300 - rand_delay_straight;
-	        			double rand_delay_turn = rand()%400;
-	        			rand_delay_turn = 200 - rand_delay_turn;
-	        			double rand_delay = rand_delay_straight + rand_delay_turn;
-	        			bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
-	        			bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(100000000);
-	        			//bots[time_left_to_move[i].second].plan.iter_wait = 6 + rand()%3;
-	        		}
-	        	}
-	        }
-	        //start_movement = tic();
-	        //cout<<"start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement: "<<start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement<<endl;
-	        bots[time_left_to_move[i].second].plan.time_spent_in_computation += (start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement);
-	        //current_time = tic();
-	        time_since_last_movement = current_time - bots[time_left_to_move[i].second].plan.last_move_time - bots[time_left_to_move[i].second].plan.time_spent_in_computation;
-	        //commenting following lines make the bots run slow, I don't know why?
-	        //cout<<"*******????????????***********\n";
-	        //cout<<"robot id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
-	        /*cout<<"wait time: "<<bots[time_left_to_move[i].second].plan.wait_time<<endl;
-	        cout<<"current_time: "<<current_time<<endl;
-	        cout<<"last_move time: "<<bots[time_left_to_move[i].second].plan.last_move_time<<endl;
-	        cout<<"time spent in computation: "<<bots[time_left_to_move[i].second].plan.time_spent_in_computation<<endl;
-	        cout<<"time since last movement: "<<time_since_last_movement<<endl;
-	        cout<<"*******????????????***********\n";*/
-        	//if((time_since_last_movement >= bots[time_left_to_move[i].second].plan.wait_time) && !check_collision_possibility(testbed, planners, bots, wheel_velocities, time_left_to_move[i].second) /*&& bots[time_left_to_move[i].second].plan.iter_wait <=0!*/) {
-        	if(1) {
-        		//cout<<"Moving to next: \n";
-        		move_count++;
-        		//cout<<"type of movement: "<<endl;
-        		/*switch(bots[time_left_to_move[i].second].plan.way_to_move)
-        		{
-        			case 0: cout<<"straight\n";break;
-        			case 1: cout<<"turn 90 degree\n";break;
-        			case 2: cout<<"turn 180 degree\n";break;
-        		}*/
-        		bots[time_left_to_move[i].second].plan.index_travelled++;
-        		//bots[time_left_to_move[i].second].plan.updateMovementinSimulation(testbed);
-       			planners[time_left_to_move[i].second] = bots[time_left_to_move[i].second].plan;
-        		bots[time_left_to_move[i].second].plan.movement_made = 1;
-        		bots[time_left_to_move[i].second].plan.time_spent_in_computation = 0;
-        		//bots[time_left_to_move[i].second].plan.last_move_time = tic();
-        	}
-        	else{
-	        	//bots[time_left_to_move[i].second].plan.iter_wait--; 
-	        	//cout<<"Had to wait!\n"<<endl;
-	        	wait_count++;
-	        	/*cout<<"type of movement: "<<endl;
-	        	switch(bots[time_left_to_move[i].second].plan.way_to_move)
-	        		{
-	        			case 0: cout<<"straight\n";break;
-	        			case 1: cout<<"turn 90 degree\n";break;
-	        			case 2: cout<<"turn 180 degree\n";break;
-	        		}*/
-	        	bots[time_left_to_move[i].second].plan.movement_made = 0;
-        	}        	
-        }    
-   	}
-   /*
-   	for(int i = 0; i < bots.size(); i++)
+	/*cout<<"start_movement: "<<start_movement<<endl;
+	cout<<"end_movementL: "<<end_movement<<endl;
+	cout<<"start_movement - end_movement: "<<start_movement-end_movement<<endl;*/
+	// pair <int, int> wheel_velocities;//dummy variable in case of simulation
+	// for(int i = 0;i<bots.size();i++){    
+	//     bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
+	//     if((bots[i].plan.next_target_index) < bots[i].plan.path_points.size())
+	//     {
+	//     	if(bots[i].plan.movement_made==1 && !first_iter)
+		 //      {
+		 //      	cout<<"wait time changed!\n";
+		 //      	bots[i].plan.last_orient = bots[i].plan.current_orient;
+		 //      	int nx = bots[i].plan.path_points[bots[i].plan.next_target_index].x - bots[i].plan.path_points[bots[i].plan.next_target_index-1].x;
+		 //      	int ny = bots[i].plan.path_points[bots[i].plan.next_target_index].y - bots[i].plan.path_points[bots[i].plan.next_target_index-1].y;
+		 //      	if(nx==0 && ny==0) bots[i].plan.iter_wait = 0;
+		 //      	else if(nx == -1 && ny == 0 )//up
+		 //      	{
+		 //      		bots[i].plan.current_orient = 0;	        	
+		 //      	}
+		 //      	else if(nx == 0 && ny == 1)//right
+		 //      	{
+		 //      		bots[i].plan.current_orient = 1;
+		 //      	}
+		 //      	else if(nx == 1 && ny == 0)//down
+		 //      	{
+		 //      		bots[i].plan.current_orient = 2;
+		 //      	}
+		 //      	else if(nx == 0 && ny == -1)//left
+		 //      	{
+		 //      		bots[i].plan.current_orient = 3;
+		 //      	}
+		 //      	if(!(nx==0 && ny==0))
+		 //      	{
+		 //      		if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)==0)//moving straight
+		 //      		{
+		 //      			bots[i].plan.way_to_move = 0;
+		 //      			//bots[i].plan.iter_wait = 0 + rand()%3;
+		 //      			double rand_delay = rand()%600;
+		 //      			rand_delay = 300 - rand_delay;
+		 //      			bots[i].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
+		 //      			bots[i].plan.wait_time = (move_straight_time + rand_delay)/(10000000);
+		 //      		}
+		 //      		else if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)%3==0)//moving 90 degree
+		 //      		{
+		 //      			bots[i].plan.way_to_move = 1;
+		 //      			//bots[i].plan.iter_wait = 3 + rand()%3;
+		 //      			double rand_delay_straight = rand()%600;
+		 //      			rand_delay_straight = 300 - rand_delay_straight;
+		 //      			double rand_delay_turn = rand()%400;
+		 //      			rand_delay_turn = 200 - rand_delay_turn;
+		 //      			double rand_delay = rand_delay_straight + rand_delay_turn;
+		 //      			bots[i].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+		 //      			bots[i].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(10000000);
+		 //      		}
+		 //      		else if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)==1)//moving 90 degree
+		 //      		{
+		 //      			bots[i].plan.way_to_move = 1;
+		 //      			double rand_delay_straight = rand()%600;
+		 //      			rand_delay_straight = 300 - rand_delay_straight;
+		 //      			double rand_delay_turn = rand()%400;
+		 //      			rand_delay_turn = 200 - rand_delay_turn;
+		 //      			double rand_delay = rand_delay_straight + rand_delay_turn;
+		 //      			bots[i].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+		 //      			bots[i].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(10000000);
+		 //      			//bots[i].plan.iter_wait = 3 + rand()%3;
+		 //      		}
+		 //      		else if(abs(bots[i].plan.current_orient - bots[i].plan.last_orient)==2)//moving 180 degree
+		 //      		{
+		 //      			bots[i].plan.way_to_move = 2;
+		 //      			double rand_delay_straight = rand()%600;
+		 //      			rand_delay_straight = 300 - rand_delay_straight;
+		 //      			double rand_delay_turn = rand()%400;
+		 //      			rand_delay_turn = 200 - rand_delay_turn;
+		 //      			double rand_delay = rand_delay_straight + rand_delay_turn;
+		 //      			bots[i].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
+		 //      			bots[i].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(10000000);
+		 //      			//bots[i].plan.iter_wait = 6 + rand()%3;
+		 //      		}
+		 //      	}
+		 //      }
+		 //      start_movement = tic();
+		 //      cout<<"start_movement-bots[i].plan.bot_start_movement: "<<start_movement-bots[i].plan.bot_start_movement<<endl;
+		 //      bots[i].plan.time_spent_in_computation += (start_movement-bots[i].plan.bot_start_movement);
+		 //      current_time = tic();
+		 //      time_since_last_movement = current_time - bots[i].plan.last_move_time - bots[i].plan.time_spent_in_computation;
+		 //      cout<<"*******????????????***********\n";
+		 //      cout<<"robot id: "<<bots[i].plan.robot_tag_id<<endl;
+		 //      cout<<"wait time: "<<bots[i].plan.wait_time<<endl;
+		 //      cout<<"current_time: "<<current_time<<endl;
+		 //      cout<<"last_move time: "<<bots[i].plan.last_move_time<<endl;
+		 //      cout<<"time spent in computation: "<<bots[i].plan.time_spent_in_computation<<endl;
+		 //      cout<<"time since last movement: "<<time_since_last_movement<<endl;
+		 //      cout<<"*******????????????***********\n";
+	//     	if(!check_collision_possibility(testbed, planners, bots, wheel_velocities, i) && time_since_last_movement >= bots[i].plan.wait_time /*&& bots[i].plan.iter_wait <=0!*/) {
+	//     		cout<<"Moving to next: \n";
+	//     		cout<<"type of movement: "<<endl;
+	//     		switch(bots[i].plan.way_to_move)
+	//     		{
+	//     			case 0: cout<<"straight\n";break;
+	//     			case 1: cout<<"turn 90 degree\n";break;
+	//     			case 2: cout<<"turn 180 degree\n";break;
+	//     		}
+	//     		bots[i].plan.index_travelled++;
+	//     		bots[i].plan.updateMovementinSimulation(testbed);
+	//    			planners[i] = bots[i].plan;
+	//     		bots[i].plan.movement_made = 1;
+	//     		bots[i].plan.time_spent_in_computation = 0;
+	//     		bots[i].plan.last_move_time = tic();
+	//     	}
+	//     	else{
+	//     	//bots[i].plan.iter_wait--; 
+	//     	cout<<"Had to wait!\n"<<endl;
+	//     	cout<<"type of movement: "<<endl;
+	//     	switch(bots[i].plan.way_to_move)
+	//     		{
+	//     			case 0: cout<<"straight\n";break;
+	//     			case 1: cout<<"turn 90 degree\n";break;
+	//     			case 2: cout<<"turn 180 degree\n";break;
+	//     		}
+	//     	bots[i].plan.movement_made = 0;
+	//     	}   	
+	//     }     
+	// }
+		start_movement = tic();
+		current_time = tic();
+
+	pair <int, int> wheel_velocities;//dummy variable in case of simulation
+	for(int i = 0;i<bots.size();i++){    
+		bots[time_left_to_move[i].second].plan.next_target_index = bots[time_left_to_move[i].second].plan.index_travelled+1;
+		if((bots[time_left_to_move[i].second].plan.next_target_index) != bots[time_left_to_move[i].second].plan.path_points.size())
+		{
+			cout<<"id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
+			if(bots[time_left_to_move[i].second].plan.movement_made==1 && !first_iter)
+			{
+				//cout<<"wait time changed!\n";
+				bots[time_left_to_move[i].second].plan.last_orient = bots[time_left_to_move[i].second].plan.current_orient;
+				int nx = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].x - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].x;
+				int ny = bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index].y - bots[time_left_to_move[i].second].plan.path_points[bots[time_left_to_move[i].second].plan.next_target_index-1].y;
+				if(nx==0 && ny==0) bots[time_left_to_move[i].second].plan.iter_wait = 0;
+				else if(nx == -1 && ny == 0 )//up
+				{
+					bots[time_left_to_move[i].second].plan.current_orient = 0;	        	
+				}
+				else if(nx == 0 && ny == 1)//right
+				{
+					bots[time_left_to_move[i].second].plan.current_orient = 1;
+				}
+				else if(nx == 1 && ny == 0)//down
+				{
+					bots[time_left_to_move[i].second].plan.current_orient = 2;
+				}
+				else if(nx == 0 && ny == -1)//left
+				{
+					bots[time_left_to_move[i].second].plan.current_orient = 3;
+				}
+				if(!(nx==0 && ny==0))
+				{
+					if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==0)//moving straight
+					{
+						bots[time_left_to_move[i].second].plan.way_to_move = 0;
+						//bots[time_left_to_move[i].second].plan.iter_wait = 0 + rand()%3;
+						double rand_delay = rand()%600;
+						rand_delay = 300 - rand_delay;
+						bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + rand_delay)/1000;
+						bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + rand_delay)/(100000000);
+					}
+					else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)%3==0)//moving 90 degree
+					{
+						bots[time_left_to_move[i].second].plan.way_to_move = 1;
+						//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
+						double rand_delay_straight = rand()%600;
+						rand_delay_straight = 300 - rand_delay_straight;
+						double rand_delay_turn = rand()%400;
+						rand_delay_turn = 200 - rand_delay_turn;
+						double rand_delay = rand_delay_straight + rand_delay_turn;
+						bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+						bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
+					}
+					else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==1)//moving 90 degree
+					{
+						bots[time_left_to_move[i].second].plan.way_to_move = 1;
+						double rand_delay_straight = rand()%600;
+						rand_delay_straight = 300 - rand_delay_straight;
+						double rand_delay_turn = rand()%400;
+						rand_delay_turn = 200 - rand_delay_turn;
+						double rand_delay = rand_delay_straight + rand_delay_turn;
+						bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time+ rand_delay)/1000;
+						bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ rand_delay)/(100000000);
+						//bots[time_left_to_move[i].second].plan.iter_wait = 3 + rand()%3;
+					}
+					else if(abs(bots[time_left_to_move[i].second].plan.current_orient - bots[time_left_to_move[i].second].plan.last_orient)==2)//moving 180 degree
+					{
+						bots[time_left_to_move[i].second].plan.way_to_move = 2;
+						double rand_delay_straight = rand()%600;
+						rand_delay_straight = 300 - rand_delay_straight;
+						double rand_delay_turn = rand()%400;
+						rand_delay_turn = 200 - rand_delay_turn;
+						double rand_delay = rand_delay_straight + rand_delay_turn;
+						bots[time_left_to_move[i].second].plan.path_completion_time += (move_straight_time + turn_quarter_time + turn_quarter_time+ rand_delay)/1000;
+						bots[time_left_to_move[i].second].plan.wait_time = (move_straight_time + turn_quarter_time+ turn_quarter_time + rand_delay)/(100000000);
+						//bots[time_left_to_move[i].second].plan.iter_wait = 6 + rand()%3;
+					}
+				}
+			}
+			//start_movement = tic();
+			//cout<<"start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement: "<<start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement<<endl;
+			bots[time_left_to_move[i].second].plan.time_spent_in_computation += (start_movement-bots[time_left_to_move[i].second].plan.bot_start_movement);
+			//current_time = tic();
+			time_since_last_movement = current_time - bots[time_left_to_move[i].second].plan.last_move_time - bots[time_left_to_move[i].second].plan.time_spent_in_computation;
+			//commenting following lines make the bots run slow, I don't know why?
+			//cout<<"*******????????????***********\n";
+			//cout<<"robot id: "<<bots[time_left_to_move[i].second].plan.robot_tag_id<<endl;
+			/*cout<<"wait time: "<<bots[time_left_to_move[i].second].plan.wait_time<<endl;
+			cout<<"current_time: "<<current_time<<endl;
+			cout<<"last_move time: "<<bots[time_left_to_move[i].second].plan.last_move_time<<endl;
+			cout<<"time spent in computation: "<<bots[time_left_to_move[i].second].plan.time_spent_in_computation<<endl;
+			cout<<"time since last movement: "<<time_since_last_movement<<endl;
+			cout<<"*******????????????***********\n";*/
+			//if((time_since_last_movement >= bots[time_left_to_move[i].second].plan.wait_time) && !check_collision_possibility(testbed, planners, bots, wheel_velocities, time_left_to_move[i].second) /*&& bots[time_left_to_move[i].second].plan.iter_wait <=0!*/) {
+			if(1) {
+				//cout<<"Moving to next: \n";
+				move_count++;
+				//cout<<"type of movement: "<<endl;
+				/*switch(bots[time_left_to_move[i].second].plan.way_to_move)
+				{
+					case 0: cout<<"straight\n";break;
+					case 1: cout<<"turn 90 degree\n";break;
+					case 2: cout<<"turn 180 degree\n";break;
+				}*/
+				bots[time_left_to_move[i].second].plan.index_travelled++;
+				//bots[time_left_to_move[i].second].plan.updateMovementinSimulation(testbed);
+				planners[time_left_to_move[i].second] = bots[time_left_to_move[i].second].plan;
+				bots[time_left_to_move[i].second].plan.movement_made = 1;
+				bots[time_left_to_move[i].second].plan.time_spent_in_computation = 0;
+				//bots[time_left_to_move[i].second].plan.last_move_time = tic();
+			}
+			else{
+				//bots[time_left_to_move[i].second].plan.iter_wait--; 
+				//cout<<"Had to wait!\n"<<endl;
+				wait_count++;
+				/*cout<<"type of movement: "<<endl;
+				switch(bots[time_left_to_move[i].second].plan.way_to_move)
+					{
+						case 0: cout<<"straight\n";break;
+						case 1: cout<<"turn 90 degree\n";break;
+						case 2: cout<<"turn 180 degree\n";break;
+					}*/
+				bots[time_left_to_move[i].second].plan.movement_made = 0;
+			}        	
+		}    
+	}
+	 /*
+	for(int i = 0; i < bots.size(); i++)
 	{
-	    
-	    if(bots[i].plan.movement_made==1)
+		
+		if(bots[i].plan.movement_made==1)
 		{
-		   bots[i].plan.last_move_time = tic();
+			 bots[i].plan.last_move_time = tic();
 		}
-	      		
+				
 	}*/
-   	
-   	
-   	end_movement = tic();
-   	for(int i = 0; i < bots.size(); i++)
+	
+	
+	end_movement = tic();
+	for(int i = 0; i < bots.size(); i++)
 	{	    
-	    if(bots[i].plan.movement_made==1)
+		if(bots[i].plan.movement_made==1)
 		{
-		   bots[i].plan.last_move_time = end_movement;
+			bots[i].plan.last_move_time = end_movement;
 		}
-	      		
+
 	}
 	
-   	//cout<<"end_movement: "<<end_movement<<endl;
-   	//total_movement_time += (end_movement-start_movement);
-   	//cout<<"end - start "<<end_movement-start_movement<<endl;
+	//cout<<"end_movement: "<<end_movement<<endl;
+	//total_movement_time += (end_movement-start_movement);
+	//cout<<"end - start "<<end_movement-start_movement<<endl;
 
-   	//cv::waitKey(0);
+	//cv::waitKey(0);
 
-    
-    bots[0].plan.drawGrid(image, planners);
-   
-   	for(int i = 0;i<bots.size();i++){      	
-        bots[i].plan.drawPath(image);        
-    }
+	
+	bots[0].plan.drawGrid(image, planners);
 
-    for(int i = 0; i < bots.size(); i++)
-    {
-    	bots[i].plan.drawRobot(image);
-    }
-      //add a next point circle draw for visualisation
-      //add a only shortest path invocation drawing function in pathplanners
-      //correct next point by index to consider reach radius to determine the next point
-    imshow(windowName,image);
-    //cv::waitKey(0);
-   for(int i = 0; i < bots.size()-1; i++)
-    {
-    	for(int j=i+1; j < bots.size(); j++)
-    	{
-    		if(bots[i].plan.path_points[bots[i].plan.index_travelled].x == bots[j].plan.path_points[bots[j].plan.index_travelled].x)
-    		{
-    			if(bots[i].plan.path_points[bots[i].plan.index_travelled].y == bots[j].plan.path_points[bots[j].plan.index_travelled].y)
-    			{
-    				cout<<"bots in same cell!\n";
-    				cout<<"i, j: "<<i<<" "<<j<<endl;
-    				cout<<"r,c: "<<bots[i].plan.path_points[bots[i].plan.index_travelled].x<<" "<<bots[i].plan.path_points[bots[i].plan.index_travelled].y<<endl;
-    				bots_in_same_cell = 1;
-    			}
-    		}
-    	}
-    }
+	for(int i = 0;i<bots.size();i++){      	
+		bots[i].plan.drawPath(image);        
+	}
 
-	    
+	for(int i = 0; i < bots.size(); i++)
+	{
+		bots[i].plan.drawRobot(image);
+	}
+		//add a next point circle draw for visualisation
+		//add a only shortest path invocation drawing function in pathplanners
+		//correct next point by index to consider reach radius to determine the next point
+	imshow(windowName,image);
+	//cv::waitKey(0);
+	for(int i = 0; i < bots.size()-1; i++)
+	{
+		for(int j=i+1; j < bots.size(); j++)
+		{
+			if(bots[i].plan.path_points[bots[i].plan.index_travelled].x == bots[j].plan.path_points[bots[j].plan.index_travelled].x)
+			{
+				if(bots[i].plan.path_points[bots[i].plan.index_travelled].y == bots[j].plan.path_points[bots[j].plan.index_travelled].y)
+				{
+					cout<<"bots in same cell!\n";
+					cout<<"i, j: "<<i<<" "<<j<<endl;
+					cout<<"r,c: "<<bots[i].plan.path_points[bots[i].plan.index_travelled].x<<" "<<bots[i].plan.path_points[bots[i].plan.index_travelled].y<<endl;
+					bots_in_same_cell = 1;
+				}
+			}
+		}
+	}
 
-	    //if(bots_in_same_cell) cv::waitKey(0);
-	    bots_in_same_cell = 0;
-	    bool completed = 1;
-	    for(int i = 0; i < bots.size(); i++)
-	    {
-	    	if(bots[i].plan.path_points.size()!=(bots[i].plan.next_target_index))
-	    	{
-	    		completed = 0;
-	    		break;
-	    	}
-	    }
-	    if(!first_iter && completed == 1)
-	    {
-	    	cout<<"Coverage Completed!\n";
-	    	break;
-	    }
 
-	    if(first_iter)
-	    {
-	     	first_iter = 0;
-	    }
-	    if (cv::waitKey(1) == 27){
-	        break;//until escape is pressed
-	    }
-  }//while
-  double end_t = tic();
-  imshow(windowName,image);
 
-  bool succesful_termination = 1;
-  int empty_cells = 0;
-  int covered_cells = 0;
-  for(int i = 0; i < bots[0].plan.rcells; i++)
-  {
-    for(int j = 0; j < bots[0].plan.ccells; j++)
-    {
-    	if(bots[0].plan.isEmpty(i,j))
-        {
-            empty_cells++;
-        }
-    }    
-  }
+		//if(bots_in_same_cell) cv::waitKey(0);
+	bots_in_same_cell = 0;
+	bool completed = 1;
+	for(int i = 0; i < bots.size(); i++)
+	{
+		if(bots[i].plan.path_points.size()!=(bots[i].plan.next_target_index))
+		{
+			completed = 0;
+			break;
+		}
+	}
+	if(!first_iter && completed == 1)
+	{
+		cout<<"Coverage Completed!\n";
+		break;
+	}
 
-  
+	if(first_iter)
+	{
+		first_iter = 0;
+	}
+	if (cv::waitKey(1) == 27){
+			break;//until escape is pressed
+		}
+	}//while
+	double end_t = tic();
+	imshow(windowName,image);
 
-  cout<<"***********************\n***************\n";
-    	int min_length = 100000000;
-    	int max_length = 0;
-    	for(int i = 0; i < bots.size(); i++)
-    	{
-    		if(bots[i].plan.path_points.size()<min_length)
-    		{
-    			min_length = bots[i].plan.path_points.size();
-    		}
-    		if(bots[i].plan.path_points.size() > max_length)
-    		{
-    			max_length = bots[i].plan.path_points.size();
-    		}
-    		cout<<"1: "<<bots[i].plan.path_points.size()<<endl;
-    		cout<<"2: "<<max_length<<endl;
-    	
-    		cout<<"id: "<<bots[i].plan.robot_tag_id<<endl;
-    		cout<<"path points size(): "<<bots[i].plan.path_points.size()<<endl;
-    		cout<<"index_travelled: "<<bots[i].plan.index_travelled<<endl;
-    		cout<<"next_target_index: "<<bots[i].plan.next_target_index<<endl;
-    		cout<<"current points: "<<bots[i].plan.path_points[bots[i].plan.index_travelled].x<<" "<<bots[i].plan.path_points[bots[i].plan.index_travelled].y<<endl;
-    	}
-    	cout<<"max: "<<max_length<<endl;
-    	cout<<"min: "<<min_length<<endl;
-    	double path_length_range = max_length-min_length;
+	bool succesful_termination = 1;
+	int empty_cells = 0;
+	int covered_cells = 0;
+	for(int i = 0; i < bots[0].plan.rcells; i++)
+	{
+		for(int j = 0; j < bots[0].plan.ccells; j++)
+		{
+			if(bots[0].plan.isEmpty(i,j))
+			{
+				empty_cells++;
+			}
+		}    
+	}
 
-    cout<<"Number of times it moved: "<<move_count<<endl;
-    cout<<"Number of times is waited: "<<wait_count<<endl;
+	
+
+	cout<<"***********************\n***************\n";
+	int min_length = 100000000;
+	int max_length = 0;
+	for(int i = 0; i < bots.size(); i++)
+	{
+		if(bots[i].plan.path_points.size()<min_length)
+		{
+			min_length = bots[i].plan.path_points.size();
+		}
+		if(bots[i].plan.path_points.size() > max_length)
+		{
+			max_length = bots[i].plan.path_points.size();
+		}
+		cout<<"1: "<<bots[i].plan.path_points.size()<<endl;
+		cout<<"2: "<<max_length<<endl;
+		
+		cout<<"id: "<<bots[i].plan.robot_tag_id<<endl;
+		cout<<"path points size(): "<<bots[i].plan.path_points.size()<<endl;
+		cout<<"index_travelled: "<<bots[i].plan.index_travelled<<endl;
+		cout<<"next_target_index: "<<bots[i].plan.next_target_index<<endl;
+		cout<<"current points: "<<bots[i].plan.path_points[bots[i].plan.index_travelled].x<<" "<<bots[i].plan.path_points[bots[i].plan.index_travelled].y<<endl;
+	}
+	cout<<"max: "<<max_length<<endl;
+	cout<<"min: "<<min_length<<endl;
+	double path_length_range = max_length-min_length;
+
+	cout<<"Number of times it moved: "<<move_count<<endl;
+	cout<<"Number of times is waited: "<<wait_count<<endl;
 	vector <vector<int>> coverage(bots[0].plan.rcells);
 	for(int i = 0; i < bots[0].plan.rcells; i++)
 	{
@@ -3225,14 +3251,14 @@ int main(int argc, char* argv[]) {
 	{
 		succesful_termination = 0;
 	}
-	  if(succesful_termination!=1)
-	  {
-	  	cout<<"NOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\n";
-	  }
-	  else
-	  {
-	  	cout<<"*******************\nSuccesful Termination!\n*******************\n";
-	  }
+	if(succesful_termination!=1)
+	{
+		cout<<"NOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\n";
+	}
+	else
+	{
+		cout<<"*******************\nSuccesful Termination!\n*******************\n";
+	}
 	//total_completion_time = time_to_compute + total_movement_time;
 	double complete_process = end_t - start_t;
 	total_movement_time = complete_process - time_to_compute;
@@ -3275,14 +3301,14 @@ int main(int argc, char* argv[]) {
 	cout<<"***************************\n";
 
 	if(succesful_termination!=1)
-	  {
-	  	cout<<"NOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\n";
-	  }
-	  else
-	  {
-	  	cout<<"*******************\nSuccesful Termination!\n*******************\n";
-	  }
-	 
-    cv::waitKey(0);
-  return 0;
+	{
+		cout<<"NOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\nNOT FULLY COVERED!\n";
+	}
+	else
+	{
+		cout<<"*******************\nSuccesful Termination!\n*******************\n";
+	}
+
+	cv::waitKey(0);
+	return 0;
 }
