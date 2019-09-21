@@ -16,320 +16,309 @@ double PathPlannerGrid::distance(double x1,double y1,double x2,double y2){
 //for the class PathPlannerGrid
 void PathPlannerGrid::initializeLocalPreferenceMatrix(){
   //moving globally right
-  aj[1][2][0].first = 0, aj[1][2][0].second = 1; 
-  aj[1][2][1].first = 1, aj[1][2][1].second = 0; 
-  aj[1][2][2].first = -1, aj[1][2][2].second = 0; 
-  aj[1][2][3].first = 0, aj[1][2][3].second = -1; 
+  aj[1][2][0].first =  0, aj[1][2][0].second =  1; 
+  aj[1][2][1].first =  1, aj[1][2][1].second =  0; 
+  aj[1][2][2].first = -1, aj[1][2][2].second =  0; 
+  aj[1][2][3].first =  0, aj[1][2][3].second = -1; 
   //moving globally left
-  aj[1][0][0].first = 0, aj[1][0][0].second = -1; 
-  aj[1][0][1].first = -1, aj[1][0][1].second = 0; 
-  aj[1][0][2].first = 1, aj[1][0][2].second = 0; 
-  aj[1][0][3].first = 0, aj[1][0][3].second = 1; 
+  aj[1][0][0].first =  0, aj[1][0][0].second = -1; 
+  aj[1][0][1].first = -1, aj[1][0][1].second =  0; 
+  aj[1][0][2].first =  1, aj[1][0][2].second =  0; 
+  aj[1][0][3].first =  0, aj[1][0][3].second =  1; 
   //moving globally down
-  aj[2][1][0].first = 1, aj[2][1][0].second = 0; 
-  aj[2][1][1].first = 0, aj[2][1][1].second = -1; 
-  aj[2][1][2].first = 0, aj[2][1][2].second = 1; 
-  aj[2][1][3].first = -1, aj[2][1][3].second = 0; 
+  aj[2][1][0].first =  1, aj[2][1][0].second =  0; 
+  aj[2][1][1].first =  0, aj[2][1][1].second = -1; 
+  aj[2][1][2].first =  0, aj[2][1][2].second =  1; 
+  aj[2][1][3].first = -1, aj[2][1][3].second =  0; 
   //moving globally up
-  aj[0][1][0].first = -1, aj[0][1][0].second = 0; 
-  aj[0][1][1].first = 0, aj[0][1][1].second = 1; 
-  aj[0][1][2].first = 0, aj[0][1][2].second = -1; 
-  aj[0][1][3].first = 1, aj[0][1][3].second = 0; 
+  aj[0][1][0].first = -1, aj[0][1][0].second =  0; 
+  aj[0][1][1].first =  0, aj[0][1][1].second =  1; 
+  aj[0][1][2].first =  0, aj[0][1][2].second = -1; 
+  aj[0][1][3].first =  1, aj[0][1][3].second =  0; 
 }
 
 void PathPlannerGrid::initializeBactrackSearchMatrix(){
   //moving globally right and check the blocked cells towards right
-  blockedcellcheck[1][2][0][0].first = 0, blockedcellcheck[1][2][0][0].second = 1;//front cell 
-  blockedcellcheck[1][2][0][1].first = 1, blockedcellcheck[1][2][0][1].second = 1;//front right
-  blockedcellcheck[1][2][0][2].first = 1, blockedcellcheck[1][2][0][2].second = -1;//back right
+  blockedcellcheck[1][2][0][0].first =  0, blockedcellcheck[1][2][0][0].second =  1;  //front
+  blockedcellcheck[1][2][0][1].first =  1, blockedcellcheck[1][2][0][1].second =  1;  //front right
+  blockedcellcheck[1][2][0][2].first =  1, blockedcellcheck[1][2][0][2].second = -1;  //back right
   //moving globally right and check the blocked cells towards left  
-  blockedcellcheck[1][2][1][0].first = 0, blockedcellcheck[1][2][1][0].second = 1; //front cell
-  blockedcellcheck[1][2][1][1].first = -1, blockedcellcheck[1][2][1][1].second = 1;//front left
-  blockedcellcheck[1][2][1][2].first = -1, blockedcellcheck[1][2][1][2].second = -1; //back left
+  blockedcellcheck[1][2][1][0].first =  0, blockedcellcheck[1][2][1][0].second =  1;  //front
+  blockedcellcheck[1][2][1][1].first = -1, blockedcellcheck[1][2][1][1].second =  1;  //front left
+  blockedcellcheck[1][2][1][2].first = -1, blockedcellcheck[1][2][1][2].second = -1;  //back left
   //moving globally left and check the blocked cells towards right
-  blockedcellcheck[1][0][0][0].first = 0, blockedcellcheck[1][0][0][0].second = -1; //frontcell
-  blockedcellcheck[1][0][0][1].first = -1, blockedcellcheck[1][0][0][1].second = -1; //frontright
-  blockedcellcheck[1][0][0][2].first = -1, blockedcellcheck[1][0][0][2].second = 1;  //backright
+  blockedcellcheck[1][0][0][0].first =  0, blockedcellcheck[1][0][0][0].second = -1;  //front
+  blockedcellcheck[1][0][0][1].first = -1, blockedcellcheck[1][0][0][1].second = -1;  //front right
+  blockedcellcheck[1][0][0][2].first = -1, blockedcellcheck[1][0][0][2].second =  1;  //back right
   //moving globally left and check the blocked cells towards left
-  blockedcellcheck[1][0][1][0].first = 0, blockedcellcheck[1][0][1][0].second = -1; //front
-  blockedcellcheck[1][0][1][1].first = 1, blockedcellcheck[1][0][1][1].second = -1; //front left
-  blockedcellcheck[1][0][1][2].first = 1, blockedcellcheck[1][0][1][2].second = 1;  //back left
+  blockedcellcheck[1][0][1][0].first =  0, blockedcellcheck[1][0][1][0].second = -1;  //front
+  blockedcellcheck[1][0][1][1].first =  1, blockedcellcheck[1][0][1][1].second = -1;  //front left
+  blockedcellcheck[1][0][1][2].first =  1, blockedcellcheck[1][0][1][2].second =  1;  //back left
   //moving globally down and check the blocked cells towards right
-  blockedcellcheck[2][1][0][0].first = 1, blockedcellcheck[2][1][0][0].second = 0; //front
-  blockedcellcheck[2][1][0][1].first = 1, blockedcellcheck[2][1][0][1].second = -1; //front right
+  blockedcellcheck[2][1][0][0].first =  1, blockedcellcheck[2][1][0][0].second =  0;  //front
+  blockedcellcheck[2][1][0][1].first =  1, blockedcellcheck[2][1][0][1].second = -1;  //front right
   blockedcellcheck[2][1][0][2].first = -1, blockedcellcheck[2][1][0][2].second = -1;  //back right
   //moving globally down and check the blocked cells towards left
-  blockedcellcheck[2][1][1][0].first = 1, blockedcellcheck[2][1][1][0].second = 0; //front
-  blockedcellcheck[2][1][1][1].first = 1, blockedcellcheck[2][1][1][1].second = 1; //front left
-  blockedcellcheck[2][1][1][2].first = -1, blockedcellcheck[2][1][1][2].second = 1;  //back left
+  blockedcellcheck[2][1][1][0].first =  1, blockedcellcheck[2][1][1][0].second =  0;  //front
+  blockedcellcheck[2][1][1][1].first =  1, blockedcellcheck[2][1][1][1].second =  1;  //front left
+  blockedcellcheck[2][1][1][2].first = -1, blockedcellcheck[2][1][1][2].second =  1;  //back left
   //moving globally up and check the blocked cells towards right
-  blockedcellcheck[0][1][0][0].first = -1, blockedcellcheck[0][1][0][0].second = 0; //front
-  blockedcellcheck[0][1][0][1].first = -1, blockedcellcheck[0][1][0][1].second = 1; //front right
-  blockedcellcheck[0][1][0][2].first = 1, blockedcellcheck[0][1][0][2].second = 1;  //back right
+  blockedcellcheck[0][1][0][0].first = -1, blockedcellcheck[0][1][0][0].second =  0;  //front
+  blockedcellcheck[0][1][0][1].first = -1, blockedcellcheck[0][1][0][1].second =  1;  //front right
+  blockedcellcheck[0][1][0][2].first =  1, blockedcellcheck[0][1][0][2].second =  1;  //back right
   //moving globally up and check the blocked cells towards left
-  blockedcellcheck[0][1][1][0].first = -1, blockedcellcheck[0][1][1][0].second = 0; //front
-  blockedcellcheck[0][1][1][1].first = -1, blockedcellcheck[0][1][1][1].second = -1; //front left
-  blockedcellcheck[0][1][1][2].first = 1, blockedcellcheck[0][1][1][2].second = -1; //back left
+  blockedcellcheck[0][1][1][0].first = -1, blockedcellcheck[0][1][1][0].second =  0;  //front
+  blockedcellcheck[0][1][1][1].first = -1, blockedcellcheck[0][1][1][1].second = -1;  //front left
+  blockedcellcheck[0][1][1][2].first =  1, blockedcellcheck[0][1][1][2].second = -1;  //back left
 }
 
 //all planners with same map must have same grid cell size in pixels
 //you should not call initialize, overlay, inversion grid on a shared map, or call if you 
 //know what you are doing
 void PathPlannerGrid::shareMap(AprilInterfaceAndVideoCapture &testbed, vector<PathPlannerGrid> &bots){
-  
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x    //Seems redundant since setRobotCellCoordinates always returns 1 in current implementation.
-    return;
-  //double px = world_grid[start_grid_x][start_grid_y].tot_x/world_grid[start_grid_x][start_grid_y].tot;
-  //double py = world_grid[start_grid_x][start_grid_y].tot_y/world_grid[start_grid_x][start_grid_y].tot;
-  double px = start_grid_x;
-  double py = start_grid_y;   //initializes local variables from global variables that were just initialized.
-  double ax, ay;
-  testbed.pixelToWorld(px, py, ax, ay);     //Converts from pixels to grid coordinates (I think).
-  for(int i = 0; i < bots.size(); i++)
-  {
-    if(i==robot_tag_id)continue;            // Skip the calling bot.
-    bots[i].setRobotCellCoordinates(testbed.detections); // Set start grid for all other bots.
-    //px = world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot_x/world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot;
-    //py = world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot_y/world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot;
-    px = bots[i].start_grid_x;      
-    py = bots[i].start_grid_y;
-    double bx, by;                          // Stores the value of the other bot's position
-    testbed.pixelToWorld(px, py, bx, by);
-    if(distance(ax, ay, bx, by)>=comm_dist) continue;     // If too far away, we skip this bot.
-    for(int r = 0; r < rcells; r++)
-    {
-      for(int c = 0; c < ccells; c++)
-      {   
-        world_grid[r][c].bot_presence = make_pair(0, -1);
-        if(bots[i].world_grid[r][c].steps)
-        {
-          world_grid[r][c].steps = 1;
-        }
-        if(bots[i].world_grid[r][c].isBT)
-        {
-          world_grid[r][c].isBT = 1;
-        }
-        if(bots[i].world_grid[r][c].isUEV)
-        {
-          world_grid[r][c].isUEV = 1;
-        }
-        if(bots[i].world_grid[r][c].visited)
-        {
-          world_grid[r][c].visited = 1;
-        }    
-      }
-    }
-    world_grid[bots[i].start_grid_x][bots[i].start_grid_y].bot_presence = make_pair(1, i);    //Marking bot on the grid.
-  }
+
+	if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x    //Seems redundant since setRobotCellCoordinates always returns 1 in current implementation.
+		return;
+	//double px = world_grid[start_grid_x][start_grid_y].tot_x/world_grid[start_grid_x][start_grid_y].tot;
+	//double py = world_grid[start_grid_x][start_grid_y].tot_y/world_grid[start_grid_x][start_grid_y].tot;
+	double px = start_grid_x;
+	double py = start_grid_y;   //initializes local variables from global variables that were just initialized.
+	double ax, ay;
+	testbed.pixelToWorld(px, py, ax, ay);     //Converts from pixels to grid coordinates (I think).
+	for(int i = 0; i < bots.size(); i++){
+		if(i==robot_tag_id)
+			continue;            // Skip the calling bot.
+		bots[i].setRobotCellCoordinates(); // Set start grid for all other bots.
+		//px = world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot_x/world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot;
+		//py = world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot_y/world_grid[bots[i].start_grid_x][bots[i].start_grid_y].tot;
+		px = bots[i].start_grid_x;      
+		py = bots[i].start_grid_y;
+		double bx, by;                          // Stores the value of the other bot's position
+		testbed.pixelToWorld(px, py, bx, by);
+		if(distance(ax, ay, bx, by)>=comm_dist)
+			continue;     // If too far away, we skip this bot.
+		for(int r = 0; r < rcells; r++){
+			for(int c = 0; c < ccells; c++){   
+				world_grid[r][c].bot_presence = make_pair(0, -1);
+				if(bots[i].world_grid[r][c].steps){
+					world_grid[r][c].steps = 1;
+				}
+				if(bots[i].world_grid[r][c].isBT){
+					world_grid[r][c].isBT = 1;
+				}
+				if(bots[i].world_grid[r][c].isUEV){
+					world_grid[r][c].isUEV = 1;
+				}
+				if(bots[i].world_grid[r][c].visited){
+					world_grid[r][c].visited = 1;
+				}    
+			}
+		}
+		world_grid[bots[i].start_grid_x][bots[i].start_grid_y].bot_presence = make_pair(1, i);    //Marking bot on the grid.
+	}
 }
 
-void PathPlannerGrid::gridInversion(const PathPlannerGrid &planner,int rid){//invert visitable and non visitable cells for the given rid
-  rcells = planner.rcells;
-  ccells = planner.ccells;
-  world_grid.resize(rcells);
-  for(int i = 0;i<rcells;i++) world_grid[i].resize(ccells);
-  for(int i = 0;i<rcells;i++)
-    for(int j = 0;j<ccells;j++)
-    {
-      if(planner.world_grid[i][j].voronoi_id < 1)
-      {
-        if(planner.world_grid[i][j].steps > 0/* && planner.world_grid[i][j].r_id > 0*//*==rid*/){//the cell was visitable by given rid
-          world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
-        }
-        else
-          world_grid[i][j].steps = 1;
-      }
-      else //in case it's a vornoi partition based implementation
-      {
-        if(planner.world_grid[i][j].steps > 0 && planner.world_grid[i][j].voronoi_id == planner.robot_tag_id/* && planner.world_grid[i][j].r_id > 0*//*==rid*/){//the cell was visitable by given rid
-          world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
-        }
-        else
-          world_grid[i][j].steps = 1;
-      }
-      world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
-      world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
-      world_grid[i][j].tot = planner.world_grid[i][j].tot;
-    }
+void PathPlannerGrid::gridInversion(const PathPlannerGrid &planner){//invert visitable and non visitable cells
+	rcells = planner.rcells;
+	ccells = planner.ccells;
+	world_grid.resize(rcells);
+	for(int i = 0; i < rcells; i++)
+		world_grid[i].resize(ccells);
+	for(int i = 0; i < rcells; i++){
+		for(int j = 0; j<ccells; j++){
+			if(planner.world_grid[i][j].voronoi_id < 1){
+				if(planner.world_grid[i][j].steps > 0){
+					world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
+				}
+				else
+					world_grid[i][j].steps = 1;
+			}
+			else{ //in case it's a vornoi partition based implementation
+				if(planner.world_grid[i][j].steps > 0 && planner.world_grid[i][j].voronoi_id == planner.robot_tag_id){//the cell was visitable
+					world_grid[i][j].blacks = world_grid[i][j].whites = world_grid[i][j].steps = 0;
+				}
+				else
+				world_grid[i][j].steps = 1;
+			}
+			world_grid[i][j].tot_x = planner.world_grid[i][j].tot_x;
+			world_grid[i][j].tot_y = planner.world_grid[i][j].tot_y;
+			world_grid[i][j].tot = planner.world_grid[i][j].tot;
+		}
+	}
 }
 
-void PathPlannerGrid::addPoint(int ind,int px, int py, int x, int y){
-  if(total_points+1>path_points.size()){
-    path_points.resize(1+total_points);
-    pixel_path_points.resize(1+total_points);
-  }
-  path_points[ind].x = x;
-  path_points[ind].y = y;
-  pixel_path_points[ind].first = px;
-  pixel_path_points[ind].second = py;
-  total_points++;
+void PathPlannerGrid::addPoint(int ind, int px, int py, int x, int y){
+	if(total_points + 1 > path_points.size()){
+		path_points.resize(1 + total_points);
+		pixel_path_points.resize(1 + total_points);
+	}
+	path_points[ind].x = x;
+	path_points[ind].y = y;
+	pixel_path_points[ind].first = px;
+	pixel_path_points[ind].second = py;
+	total_points++;
 }
 
-bool PathPlannerGrid::isEmpty(int r,int c){//criteria based on which to decide whether cell is empty
-  if(r<0 || c<0 || r> rcells-1 || c>=ccells || world_grid[r][c].blacks > world_grid[r][c].whites*0.2){//more than 20 percent
-    return false;
-  }
-  return true;
+bool PathPlannerGrid::isEmpty(int r, int c){//criteria based on which to decide whether cell is empty
+	if(r < 0 || c < 0 || r >= rcells || c >= ccells || world_grid[r][c].blacks > world_grid[r][c].whites*0.2){//more than 20 percent
+		return false;
+	}
+	return true;
 }
 //everyone except origin tag is my friend
-bool PathPlannerGrid::isFellowAgent(int x,int y,vector<AprilTags::TagDetection> &detections){
-  for(int i = 0;i<detections.size();i++){
-    //if(i == origin_id)
-      //continue;
-    if(pixelIsInsideTag(x,y,detections,i))
-      return true;
-  }
-  return false;
+bool PathPlannerGrid::isFellowAgent(int x, int y, vector<AprilTags::TagDetection> detections){
+	for(auto det : detections){
+		if(pixelIsInsideTag(x,y,det))
+			return true;
+  	}
+	return false;
 }
 
-bool PathPlannerGrid::pixelIsInsideTag(int x,int y,vector<AprilTags::TagDetection> &detections,int ind){
-  if(ind<0)
-    return false;
-  for(int i = 0;i<4;i++){
-    int j = (i+1)%4;
-    if((x-detections[ind].p[j].first)*(detections[ind].p[j].second-detections[ind].p[i].second) - (y-detections[ind].p[j].second)*(detections[ind].p[j].first-detections[ind].p[i].first) >= 0)
-      continue;
-    return false;
-  }
-  return true;
+bool PathPlannerGrid::pixelIsInsideTag(int x, int y, AprilTags::TagDetection detection){
+	for(int i = 0; i < 4; i++){
+		int j = (i+1)%4;
+		if((x - detection.p[j].first)*(detection.p[j].second - detection.p[i].second) - (y - detection.p[j].second)*(detection.p[j].first - detection.p[i].first) < 0)
+			return false;
+	}
+	return true;
 }
 //note the different use of r,c and x,y in the context of matrix and image respectively
-//check for obstacles but excludes the black pixels ouvained from apriltags
+//check for obstacles but excludes the black pixels obtained from apriltags
 //to use this function to check if robot is in frame, you must set start_grid_x, y to -1 before processing image
-int PathPlannerGrid::setRobotCellCoordinates(vector<AprilTags::TagDetection> &detections){
-  start_grid_y = path_points[index_travelled].y;
-  start_grid_x = path_points[index_travelled].x;
-  return 1;
+int PathPlannerGrid::setRobotCellCoordinates(){
+	start_grid_x = path_points[index_travelled].x;
+	start_grid_y = path_points[index_travelled].y;
+	return 1;
 }
 
 int PathPlannerGrid::setGoalCellCoordinates(vector<AprilTags::TagDetection> &detections){
-  if(goal_id < 0){
-    if(goal_grid_x == goal_grid_y && goal_grid_x == -1){
-      cout<<"can't find goal in tags detected"<<endl;
-      return -1;
-    }
-    else
-      return 1;
-  }
-  goal_grid_y = detections[goal_id].cxy.first/cell_size_x;
-  goal_grid_x = detections[goal_id].cxy.second/cell_size_y;
-  return 1;
+	if(goal_id < 0){
+		if(goal_grid_y == -1 && goal_grid_x == -1){
+			cout<<"Can't find goal in tags detected."<<endl;
+			return -1;
+		}
+		else
+			return 1;
+	}
+	goal_grid_y = detections[goal_id].cxy.first/cell_size_x;
+	goal_grid_x = detections[goal_id].cxy.second/cell_size_y;
+	return 1;
 }
 
-void PathPlannerGrid::drawGrid(Mat &image, vector<PathPlannerGrid> &bots){
-  int channels = image.channels();
-  if(channels != 1 && channels != 3){
-    cout<<"can't draw the grid on the given image"<<endl;
-    return;
-  }
-  Vec3b col(0,0,0);
-  int r = image.rows, c = image.cols;
-  for(int i = 0;i<r;i += cell_size_y)
-    for(int j = 0;j<c;j++)
-      if(channels == 1)
-        image.at<uint8_t>(i,j) = 0;
-      else
-        image.at<Vec3b>(i,j) = col;
-  for(int i = 0;i<c;i+=cell_size_x)
-    for(int j = 0;j<r;j++)
-      if(channels == 1)
-        image.at<uint8_t>(j,i) = 0;
-      else
-        image.at<Vec3b>(j,i) = col; 
-   for(int i = 0; i < rcells; i++)
-    {
-      string s = to_string(i);
-      putText(image, s, Point(0,((i+1)*cell_size_x-1)), FONT_HERSHEY_DUPLEX, 0.25, Scalar(255,255,255), 0.5);
+void PathPlannerGrid::drawGrid(Mat &image){
+	int channels = image.channels();
+	if(channels != 1 && channels != 3){
+ 		cout<<"can't draw the grid on the given image"<<endl;
+    	return;
+  	}
+	Vec3b col(0,0,0);
+	int r = image.rows, c = image.cols;
+	for(int i = 0;i<r;i += cell_size_y)
+		for(int j = 0;j<c;j++)
+			if(channels == 1)
+				image.at<uint8_t>(i,j) = 0;
+			else
+				image.at<Vec3b>(i,j) = col;
+	for(int i = 0;i<c;i+=cell_size_x)
+		for(int j = 0;j<r;j++)
+			if(channels == 1)
+				image.at<uint8_t>(j,i) = 0;
+			else
+				image.at<Vec3b>(j,i) = col; 
+	for(int i = 0; i < rcells; i++){
+		string s = to_string(i);
+		putText(image, s, Point(0,((i+1)*cell_size_x-1)), FONT_HERSHEY_DUPLEX, 0.25, Scalar(255,255,255), 0.5);
     }
-    for(int i = 0; i < ccells; i++)
-    {
-      string s = to_string(i);
-      putText(image, s, Point((i)*cell_size_y, cell_size_y), FONT_HERSHEY_DUPLEX, 0.25, Scalar(255,255,255), 0.5);
+    for(int i = 0; i < ccells; i++){
+		string s = to_string(i);
+		putText(image, s, Point((i)*cell_size_y, cell_size_y), FONT_HERSHEY_DUPLEX, 0.25, Scalar(255,255,255), 0.5);
     } 
 }
 
-void PathPlannerGrid::initializeGrid(int r,int c){//image rows and columns are provided
-  rcells = ceil((float)r/cell_size_y);
-  ccells = ceil((float)c/cell_size_x);
-  world_grid.resize(rcells);
-  for(int i = 0;i<rcells;i++) world_grid[i].resize(ccells);
-  for(int i = 0;i<rcells;i++)
-    for(int j = 0;j<ccells;j++)
-      world_grid[i][j].emptyCell();
+void PathPlannerGrid::initializeGrid(int r, int c){//image rows and columns are provided
+	rcells = ceil((float)r/cell_size_y);
+	ccells = ceil((float)c/cell_size_x);
+	world_grid.resize(rcells);
+	for(int i = 0; i < rcells; i++)
+		world_grid[i].resize(ccells);
+	for(int i = 0; i < rcells; i++)
+		for(int j = 0; j < ccells; j++)
+			world_grid[i][j].emptyCell();
 }
 
-void PathPlannerGrid::overlayGrid(vector<AprilTags::TagDetection> &detections,Mat &grayImage){
-  threshold(grayImage,grayImage,threshold_value,255,0);
-  int r = grayImage.rows, c = grayImage.cols;
-  initializeGrid(r,c);
-  for(int i = 0;i<r;i++){
-    for(int j = 0;j<c;j++){
-      int gr = i/cell_size_y, gc = j/cell_size_x;
-      world_grid[gr][gc].tot++;
-      if(grayImage.at<uint8_t>(i,j) == 255 || isFellowAgent(j+1,i+1,detections)){
-        world_grid[gr][gc].whites++;
-        grayImage.at<uint8_t>(i,j) = 255;
-      }
-      else{
-        world_grid[gr][gc].blacks++;
-        grayImage.at<uint8_t>(i,j) = 0;
-      }
-      world_grid[gr][gc].tot_x += j+1;//pixel values are indexed from 1
-      world_grid[gr][gc].tot_y += i+1;
-    }
-  }
+void PathPlannerGrid::overlayGrid(vector<AprilTags::TagDetection> &detections, Mat &grayImage){
+	threshold(grayImage,grayImage,threshold_value,255,0);
+	int r = grayImage.rows, c = grayImage.cols;
+	initializeGrid(r,c);
+	for(int i = 0; i < r; i++){
+		for(int j = 0; j < c; j++){
+			int gr = i/cell_size_y, gc = j/cell_size_x;
+			world_grid[gr][gc].tot++;
+			if(grayImage.at<uint8_t>(i,j) == 255 || isFellowAgent(j+1,i+1,detections)){
+				world_grid[gr][gc].whites++;
+				grayImage.at<uint8_t>(i,j) = 255;
+      		}
+      		else {
+        		world_grid[gr][gc].blacks++;
+        		grayImage.at<uint8_t>(i,j) = 0;
+      		}
+      		world_grid[gr][gc].tot_x += j+1;//pixel values are indexed from 1
+      		world_grid[gr][gc].tot_y += i+1;
+    	}
+  	}
 }
 
-pair<int,int> PathPlannerGrid::setParentUsingOrientation(robot_pose &ps){
-  int agl = ps.omega;
-  if(ps.omega == 0) return pair<int,int> (start_grid_x+1,start_grid_y);
-  if(ps.omega == 1) return pair<int,int> (start_grid_x,start_grid_y-1);
-  if(ps.omega == 2) return pair<int,int> (start_grid_x-1,start_grid_y);
-  if(ps.omega == 3) return pair<int,int> (start_grid_x,start_grid_y+1);
+pair<int,int> PathPlannerGrid::getParent(robot_pose &ps){
+	switch(ps.omega){
+		case 0:
+			return pair<int,int> (start_grid_x+1,start_grid_y);
+		case 1:
+			return pair<int,int> (start_grid_x,start_grid_y-1);
+		case 2:
+			return pair<int,int> (start_grid_x-1,start_grid_y);
+		case 3:
+			return pair<int,int> (start_grid_x,start_grid_y+1);
+	}
 }
 
-void PathPlannerGrid::addGridCellToPath(int r,int c,AprilInterfaceAndVideoCapture &testbed){
-  //cout<<"adding cell "<<r<<" "<<c<<endl;
-  int ax,ay;//double bx,by;
-  world_grid[r][c].r_id = robot_tag_id;//adding this because I can't figure out where in the later code in bsa incremental, I'm not updating the rid of the latest point added
-  ax = world_grid[r][c].tot_x/world_grid[r][c].tot;
-  ay = world_grid[r][c].tot_y/world_grid[r][c].tot;
-  //testbed.pixelToWorld(ax,ay,bx,by);
-  addPoint(total_points,ax,ay,r,c);
+void PathPlannerGrid::addGridCellToPath(int r, int c){
+	int ax, ay; //double bx,by;
+	world_grid[r][c].r_id = robot_tag_id;//adding this because I can't figure out where in the later code in bsa incremental, I'm not updating the rid of the latest point added
+	ax = world_grid[r][c].tot_x/world_grid[r][c].tot;
+	ay = world_grid[r][c].tot_y/world_grid[r][c].tot;
+	addPoint(total_points, ax, ay, r, c);
 }
 
 bool PathPlannerGrid::isBlocked(int ngr, int ngc){
-  if(ngr >= 0 && ngc >=0 && ngr < rcells && ngc < ccells  && world_grid[ngr][ngc].voronoi_id>=1)
-  {
-    if(!isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps || world_grid[ngr][ngc].voronoi_id!=robot_tag_id)
-    return true;
-  }
-  else
-  {
-    if(!isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
-    return true;
-  }  
-  return false;
+	if(ngr >= 0 && ngc >=0 && ngr < rcells && ngc < ccells && world_grid[ngr][ngc].voronoi_id >= 1){
+		if(!isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps || world_grid[ngr][ngc].voronoi_id != robot_tag_id)
+			return true;
+	}
+	else{
+		if(!isEmpty(ngr,ngc) || world_grid[ngr][ngc].steps)
+			return true;
+	}  
+	return false;
 }
 
-int PathPlannerGrid::getWallReference(int r,int c,int pr, int pc){
-  if(pr < 0 || pc < 0)//for global preference coverage, as parent field remains unused
-    return -1;
-  int ngr[4],ngc[4];
-  int nx = r-pr+1, ny = c-pc+1;
-  for(int i = 0;i<4;i++)
-    ngr[i] = r+aj[nx][ny][i].first, ngc[i] = c+aj[nx][ny][i].second;
-  if(isBlocked(ngr[1],ngc[1]))//right wall due to higher priority
-    return 1;
-  if(isBlocked(ngr[0],ngc[0]))//front wall, turn right, left wall reference
-    return 2;
-  if(isBlocked(ngr[2],ngc[2]))//left wall
-    return 2;
-  return -1;//
+int PathPlannerGrid::getWallReference(int r, int c, int pr, int pc){
+	if(pr < 0 || pc < 0)//for global preference coverage, as parent field remains unused
+		return -1;
+	int ngr[3], ngc[3];
+	int nx = r-pr+1, ny = c-pc+1;
+	for(int i = 0; i < 3; i++)
+		ngr[i] = r+aj[nx][ny][i].first, ngc[i] = c+aj[nx][ny][i].second;
+	if(isBlocked(ngr[1],ngc[1]))//right wall due to higher priority
+		return 1;
+	if(isBlocked(ngr[0],ngc[0]))//front wall, turn right, left wall reference
+		return 2;
+	if(isBlocked(ngr[2],ngc[2]))//left wall
+		return 2;
+	return -1;
 }
 //find shortest traversal,populate path_points
 void PathPlannerGrid::findshortest(AprilInterfaceAndVideoCapture &testbed){
-  //if(setRobotCellCoordinates(testbed.detections)<0)
+  //if(setRobotCellCoordinates()<0)
    //return;
   //if(setGoalCellCoordinates(testbed.detections)<0)
     //return;
@@ -372,7 +361,7 @@ void PathPlannerGrid::findshortest(AprilInterfaceAndVideoCapture &testbed){
   pixel_path_points.resize(cnt);
   path_points.resize(cnt);
   for(int i = cnt-1;!(t.first == rcells && t.second == ccells);i--){
-    addGridCellToPath(t.first,t.second,testbed);
+    addGridCellToPath(t.first,t.second);
     t = world_grid[t.first][t.second].parent;
   }
 }
@@ -391,7 +380,7 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
     ic_no++;
     vector<vector<nd> > tp;//a temporary map
     PathPlannerGrid temp_planner(tp);
-    temp_planner.gridInversion(*this, robot_tag_id);
+    temp_planner.gridInversion(*this);
     temp_planner.start_grid_x = incumbent_cells[0].first;
     temp_planner.start_grid_y = incumbent_cells[0].second;
     /*temp_planner.goal_grid_x = incumbent_cells[ic_no-1].first;
@@ -404,7 +393,7 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
     }
     //for(int i = 1;i<ic_no;i++){//simply revisit the previous cells till reach the branch
       //int cellrow = incumbent_cells[i].first, cellcol = incumbent_cells[i].second;
-      //addGridCellToPath(cellrow,cellcol,testbed);
+      //addGridCellToPath(cellrow,cellcol);
     //}
     ic_no = 0;//reset to zero
   }
@@ -412,12 +401,12 @@ void PathPlannerGrid::addBacktrackPointToStackAndPath(stack<pair<int,int> > &sk,
   world_grid[ngr][ngc].steps = 1;
   world_grid[ngr][ngc].parent = t;
   world_grid[ngr][ngc].r_id = robot_tag_id;
-  addGridCellToPath(ngr,ngc,testbed);
+  addGridCellToPath(ngr,ngc);
   sk.push(pair<int,int>(ngr,ngc));
 }
 
 int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
     return 10000000;
   if(sk.empty())//the robot is inactive
     return 10000000;//it can't ever reach
@@ -487,7 +476,7 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
     //if(isEmpty(ngr,ngc) && world_gridc[ngr][ngc].steps/*r_id >0 *//*== robot_tag_id*/){//robot can get to given target via [ngr][ngc], /*no need to check steps as I'm checking the r_id which implies covered*/
       vector<vector<nd> > tp2;//a temporary map
       PathPlannerGrid temp_planner(tp2);
-      temp_planner.gridInversion(plannerc, robot_tag_id);
+      temp_planner.gridInversion(plannerc);
       temp_planner.start_grid_x = skc.top().first;
       temp_planner.start_grid_y = skc.top().second;
       //temp_planner.goal_grid_x = ngr;
@@ -508,7 +497,7 @@ int PathPlannerGrid::backtrackSimulateBid(pair<int,int> target,AprilInterfaceAnd
 }
 
 void PathPlannerGrid::updateMovementinSimulation(AprilInterfaceAndVideoCapture &testbed){
-   if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+   if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;
     world_grid[start_grid_x][start_grid_y].bot_presence = make_pair(1, robot_tag_id); //assigning bot presence bit to current cell, //this would come to use in collision avoidance algorithm
     if(last_grid_x != start_grid_x || last_grid_y != start_grid_y)
@@ -723,7 +712,7 @@ pair <int, int> PathPlannerGrid::bidForUEV(AprilInterfaceAndVideoCapture &testbe
 }
 //each function call adds only the next spiral point in the path vector, which may occur after a return phase
 void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;
 
   if(!first_call){
@@ -768,7 +757,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     first_call = 0;
     total_points = 0;
     sk.push(pair<int,int>(start_grid_x,start_grid_y));
-    world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+    world_grid[start_grid_x][start_grid_y].parent = getParent(ps);
     world_grid[start_grid_x][start_grid_y].steps = 1;//visited
     world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
     world_grid[start_grid_x][start_grid_y].bot_presence = make_pair(1, robot_tag_id);
@@ -777,7 +766,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
     start_cell_x = start_grid_x;
     start_cell_y = start_grid_y;
     target_grid_cell = make_pair(start_grid_x, start_grid_y);
-    addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+    addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
     return;//added the first spiral point
   }
   int ngr,ngc,wall;//neighbor row and column
@@ -967,7 +956,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
   //         {
   //           vector<vector<nd> > tp;//a temporary map
   //           PathPlannerGrid temp_planner(tp);
-  //           temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+  //           temp_planner.gridInversion(*this);
   //           temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
   //           temp_planner.start_grid_y = start_grid_y;
   //           temp_planner.goal_grid_x = best_parent_x;
@@ -989,7 +978,7 @@ void PathPlannerGrid::BSACoverageIncremental(AprilInterfaceAndVideoCapture &test
 
   //     vector<vector<nd> > tp;//a temporary map
   //     PathPlannerGrid temp_planner(tp);
-  //     temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+  //     temp_planner.gridInversion(*this);
   //     temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
   //     temp_planner.start_grid_y = start_grid_y;
   //     temp_planner.goal_grid_x = bots[j].bt_destinations[i].parent.first;
@@ -1183,7 +1172,7 @@ void PathPlannerGrid::BSA_CMSearchForBTAmongstUEV(AprilInterfaceAndVideoCapture 
             {
               vector<vector<nd> > tp;//a temporary map
               PathPlannerGrid temp_planner(tp);
-              temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+              temp_planner.gridInversion(*this);
               temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
               temp_planner.start_grid_y = start_grid_y;
               temp_planner.goal_grid_x = best_parent_x;
@@ -1205,7 +1194,7 @@ void PathPlannerGrid::BSA_CMSearchForBTAmongstUEV(AprilInterfaceAndVideoCapture 
 
           vector<vector<nd> > tp;//a temporary map
           PathPlannerGrid temp_planner(tp);
-          temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+          temp_planner.gridInversion(*this);
           temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
           temp_planner.start_grid_y = start_grid_y;
           temp_planner.goal_grid_x = bots[j].uev_destinations[i].parent.first;
@@ -1293,7 +1282,7 @@ void PathPlannerGrid::BSA_CMSearchForBTAmongstUEV(AprilInterfaceAndVideoCapture 
 }
 
 void PathPlannerGrid::SSB(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;
 
   if(!first_call){
@@ -1342,7 +1331,7 @@ void PathPlannerGrid::SSB(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps
     first_call = 0;
     total_points = 0;
     sk.push(pair<int,int>(start_grid_x,start_grid_y));
-    world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+    world_grid[start_grid_x][start_grid_y].parent = getParent(ps);
     world_grid[start_grid_x][start_grid_y].steps = 1;//visited
     world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
     world_grid[start_grid_x][start_grid_y].bot_presence = make_pair(1, robot_tag_id);
@@ -1351,7 +1340,7 @@ void PathPlannerGrid::SSB(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps
     start_cell_x = start_grid_x;
     start_cell_y = start_grid_y;
     target_grid_cell = make_pair(start_grid_x, start_grid_y);
-    addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+    addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
     return;//added the first spiral point
   }//if first_call
   int ngr,ngc,wall;//neighbor row and column
@@ -1571,7 +1560,7 @@ next_target = bidForBT(testbed, make_pair(start_grid_x, start_grid_y), bots);
  //          {
  //            vector<vector<nd> > tp;//a temporary map
  //            PathPlannerGrid temp_planner(tp);
- //            temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+ //            temp_planner.gridInversion(*this);
  //            temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
  //            temp_planner.start_grid_y = start_grid_y;
  //            temp_planner.goal_grid_x = best_parent_x;
@@ -1593,7 +1582,7 @@ next_target = bidForBT(testbed, make_pair(start_grid_x, start_grid_y), bots);
 
  //        vector<vector<nd> > tp;//a temporary map
  //        PathPlannerGrid temp_planner(tp);
- //        temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+ //        temp_planner.gridInversion(*this);
  //        temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
  //        temp_planner.start_grid_y = start_grid_y;
  //        temp_planner.goal_grid_x = bots[j].bt_destinations[i].parent.first;
@@ -1681,7 +1670,7 @@ next_target = bidForBT(testbed, make_pair(start_grid_x, start_grid_y), bots);
 }//function
 
 int PathPlannerGrid::backtrackSimulateBidForBoustrophedonMotion(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x though we don't needto use them in this function(but is just a weak confirmation that the robot is in current view), doesn't take into account whether the robot is in the current view or not(the variables might be set from before), you need to check it before calling this function to ensure correct response
       return 10000000;
     if(sk.empty())//the robot is inactive
       return 10000000;//it can't ever reach
@@ -1729,7 +1718,7 @@ int PathPlannerGrid::backtrackSimulateBidForBoustrophedonMotion(pair<int,int> ta
 
   vector<vector<nd> > tp2;//a temporary map
   PathPlannerGrid temp_planner(tp2);
-  temp_planner.gridInversion(plannerc, robot_tag_id);
+  temp_planner.gridInversion(plannerc);
   temp_planner.start_grid_x = skc.top().first;
   temp_planner.start_grid_y = skc.top().second;
   temp_planner.goal_grid_x = target.first;
@@ -1771,7 +1760,7 @@ void PathPlannerGrid::BoustrophedonMotionSearchForBTAmongstUEV(AprilInterfaceAnd
             {
               vector<vector<nd> > tp;//a temporary map
               PathPlannerGrid temp_planner(tp);
-              temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+              temp_planner.gridInversion(*this);
               temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
               temp_planner.start_grid_y = start_grid_y;
               temp_planner.goal_grid_x = best_parent_x;
@@ -1793,7 +1782,7 @@ void PathPlannerGrid::BoustrophedonMotionSearchForBTAmongstUEV(AprilInterfaceAnd
 
           vector<vector<nd> > tp;//a temporary map
           PathPlannerGrid temp_planner(tp);
-          temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+          temp_planner.gridInversion(*this);
           temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
           temp_planner.start_grid_y = start_grid_y;
           temp_planner.goal_grid_x = bots[j].uev_destinations[i].parent.first;
@@ -1881,7 +1870,7 @@ void PathPlannerGrid::BoustrophedonMotionSearchForBTAmongstUEV(AprilInterfaceAnd
 }
 
 void PathPlannerGrid::BoustrophedonMotionWithUpdatedBactrackSelection(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
   return;
     if(!first_call){
       for(int i = 0; i< bt_destinations.size();i++){
@@ -1924,7 +1913,7 @@ void PathPlannerGrid::BoustrophedonMotionWithUpdatedBactrackSelection(AprilInter
       first_call = 0;
       total_points = 0;
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
-      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+      world_grid[start_grid_x][start_grid_y].parent = getParent(ps);
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
       world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
       world_grid[start_grid_x][start_grid_y].bot_presence = make_pair(1, robot_tag_id);
@@ -1933,7 +1922,7 @@ void PathPlannerGrid::BoustrophedonMotionWithUpdatedBactrackSelection(AprilInter
       start_cell_x = start_grid_x;
       start_cell_y = start_grid_y;
       target_grid_cell = make_pair(start_grid_x, start_grid_y);
-      addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+      addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
       
       return;//added the first spiral point
     } 
@@ -2048,7 +2037,7 @@ void PathPlannerGrid::BoustrophedonMotionWithUpdatedBactrackSelection(AprilInter
           {
             vector<vector<nd> > tp;//a temporary map
             PathPlannerGrid temp_planner(tp);
-            temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+            temp_planner.gridInversion(*this);
             temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
             temp_planner.start_grid_y = start_grid_y;
             temp_planner.goal_grid_x = best_parent_x;
@@ -2070,7 +2059,7 @@ void PathPlannerGrid::BoustrophedonMotionWithUpdatedBactrackSelection(AprilInter
 
         vector<vector<nd> > tp;//a temporary map
         PathPlannerGrid temp_planner(tp);
-        temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+        temp_planner.gridInversion(*this);
         temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
         temp_planner.start_grid_y = start_grid_y;
         temp_planner.goal_grid_x = bots[j].bt_destinations[i].parent.first;
@@ -2156,7 +2145,7 @@ void PathPlannerGrid::BoustrophedonMotionWithUpdatedBactrackSelection(AprilInter
 }//function
 
 void PathPlannerGrid::BoustrophedonMotionWithBSA_CMlikeBacktracking(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
   return;
     if(!first_call){
       for(int i = 0; i< bt_destinations.size();i++){
@@ -2199,7 +2188,7 @@ void PathPlannerGrid::BoustrophedonMotionWithBSA_CMlikeBacktracking(AprilInterfa
       first_call = 0;
       total_points = 0;
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
-      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+      world_grid[start_grid_x][start_grid_y].parent = getParent(ps);
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
       world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
       world_grid[start_grid_x][start_grid_y].bot_presence = make_pair(1, robot_tag_id);
@@ -2208,7 +2197,7 @@ void PathPlannerGrid::BoustrophedonMotionWithBSA_CMlikeBacktracking(AprilInterfa
       start_cell_x = start_grid_x;
       start_cell_y = start_grid_y;
       target_grid_cell = make_pair(start_grid_x, start_grid_y);
-      addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+      addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
       
       return;//added the first spiral point
     } 
@@ -2295,7 +2284,7 @@ void PathPlannerGrid::BoustrophedonMotionWithBSA_CMlikeBacktracking(AprilInterfa
           {
             vector<vector<nd> > tp;//a temporary map
             PathPlannerGrid temp_planner(tp);
-            temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+            temp_planner.gridInversion(*this);
             temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
             temp_planner.start_grid_y = start_grid_y;
             temp_planner.goal_grid_x = best_parent_x;
@@ -2317,7 +2306,7 @@ void PathPlannerGrid::BoustrophedonMotionWithBSA_CMlikeBacktracking(AprilInterfa
 
         vector<vector<nd> > tp;//a temporary map
         PathPlannerGrid temp_planner(tp);
-        temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+        temp_planner.gridInversion(*this);
         temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
         temp_planner.start_grid_y = start_grid_y;
         temp_planner.goal_grid_x = bots[j].bt_destinations[i].parent.first;
@@ -2406,7 +2395,7 @@ void PathPlannerGrid::BoustrophedonMotionWithBSA_CMlikeBacktracking(AprilInterfa
 }//function
 
 void PathPlannerGrid::BoB(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
   return;
     if(!first_call){
       shareMap(testbed, bots);
@@ -2450,7 +2439,7 @@ void PathPlannerGrid::BoB(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps
       first_call = 0;
       total_points = 0;
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
-      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+      world_grid[start_grid_x][start_grid_y].parent = getParent(ps);
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
       world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
       world_grid[start_grid_x][start_grid_y].bot_presence = make_pair(1, robot_tag_id);
@@ -2459,7 +2448,7 @@ void PathPlannerGrid::BoB(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps
       start_cell_x = start_grid_x;
       start_cell_y = start_grid_y;
       target_grid_cell = make_pair(start_grid_x, start_grid_y);
-      addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+      addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
       
       return;//added the first spiral point
     } 
@@ -2603,7 +2592,7 @@ next_target = nearestBT(testbed, make_pair(start_grid_x, start_grid_y), bots);
   //         {
   //           vector<vector<nd> > tp;//a temporary map
   //           PathPlannerGrid temp_planner(tp);
-  //           temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+  //           temp_planner.gridInversion(*this);
   //           temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
   //           temp_planner.start_grid_y = start_grid_y;
   //           temp_planner.goal_grid_x = best_parent_x;
@@ -2625,7 +2614,7 @@ next_target = nearestBT(testbed, make_pair(start_grid_x, start_grid_y), bots);
 
   //       vector<vector<nd> > tp;//a temporary map
   //       PathPlannerGrid temp_planner(tp);
-  //       temp_planner.gridInversion(*this, bots[j].robot_tag_id);
+  //       temp_planner.gridInversion(*this);
   //       temp_planner.start_grid_x = start_grid_x;//the current robot coordinates
   //       temp_planner.start_grid_y = start_grid_y;
   //       temp_planner.goal_grid_x = bots[j].bt_destinations[i].parent.first;
@@ -2671,7 +2660,7 @@ next_target = nearestBT(testbed, make_pair(start_grid_x, start_grid_y), bots);
 }//function
 
 void PathPlannerGrid::MDFS(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;
   if(!first_call){
     shareMap(testbed, bots);
@@ -2713,7 +2702,7 @@ void PathPlannerGrid::MDFS(AprilInterfaceAndVideoCapture &testbed, robot_pose &p
       first_call = 0;
       total_points = 0;
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
-      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);      
+      world_grid[start_grid_x][start_grid_y].parent = getParent(ps);      
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
       world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
       world_grid[start_grid_x][start_grid_y].tree_id = robot_tag_id;
@@ -2723,7 +2712,7 @@ void PathPlannerGrid::MDFS(AprilInterfaceAndVideoCapture &testbed, robot_pose &p
       start_cell_x = start_grid_x;
       start_cell_y = start_grid_y;
       target_grid_cell = make_pair(start_grid_x, start_grid_y);
-      addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+      addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
       return;//added the first spiral point
     }//first_call
  
@@ -2796,7 +2785,7 @@ void PathPlannerGrid::MDFS(AprilInterfaceAndVideoCapture &testbed, robot_pose &p
 }//first_call
 
 void PathPlannerGrid::ANTS(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;
   if(!first_call){
     if(!sk.empty()){
@@ -2844,7 +2833,7 @@ void PathPlannerGrid::ANTS(AprilInterfaceAndVideoCapture &testbed, robot_pose &p
       first_call = 0;
       total_points = 0;
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
-      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);      
+      world_grid[start_grid_x][start_grid_y].parent = getParent(ps);      
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
       world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
       world_grid[start_grid_x][start_grid_y].tree_id = robot_tag_id;
@@ -2855,7 +2844,7 @@ void PathPlannerGrid::ANTS(AprilInterfaceAndVideoCapture &testbed, robot_pose &p
       start_cell_x = start_grid_x;
       start_cell_y = start_grid_y;
       target_grid_cell = make_pair(start_grid_x, start_grid_y);
-      addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+      addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
       return;//added the first spiral point
     }//first_call
  
@@ -2888,7 +2877,7 @@ void PathPlannerGrid::ANTS(AprilInterfaceAndVideoCapture &testbed, robot_pose &p
 }
 
 void PathPlannerGrid::S_MSTC(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;
   if(!first_call){
     if(!sk.empty()){
@@ -2921,7 +2910,7 @@ void PathPlannerGrid::S_MSTC(AprilInterfaceAndVideoCapture &testbed, robot_pose 
       total_points = 0;
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
       second_sk.push(pair<int,int>(start_grid_x,start_grid_y));
-      //world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);      
+      //world_grid[start_grid_x][start_grid_y].parent = getParent(ps);      
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
       world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
       world_grid[start_grid_x][start_grid_y].tree_id = robot_tag_id;
@@ -2931,7 +2920,7 @@ void PathPlannerGrid::S_MSTC(AprilInterfaceAndVideoCapture &testbed, robot_pose 
       start_cell_x = start_grid_x;
       start_cell_y = start_grid_y;
       target_grid_cell = make_pair(start_grid_x, start_grid_y);
-      addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+      addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
       return;//added the first spiral point
     }//first_call
  
@@ -3019,7 +3008,7 @@ bool PathPlannerGrid::checkConnectivity(pair <int, int> start, pair <int, int> e
 }
 
 void PathPlannerGrid::BrickAndMortar(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;
   if(!first_call){
     shareMap(testbed, bots);
@@ -3057,7 +3046,7 @@ void PathPlannerGrid::BrickAndMortar(AprilInterfaceAndVideoCapture &testbed, rob
       first_call = 0;
       total_points = 0;
       sk.push(pair<int,int>(start_grid_x,start_grid_y));
-      world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);      
+      world_grid[start_grid_x][start_grid_y].parent = getParent(ps);      
       world_grid[start_grid_x][start_grid_y].steps = 1;//visited
       world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
       world_grid[start_grid_x][start_grid_y].tree_id = robot_tag_id;
@@ -3067,7 +3056,7 @@ void PathPlannerGrid::BrickAndMortar(AprilInterfaceAndVideoCapture &testbed, rob
       start_cell_x = start_grid_x;
       start_cell_y = start_grid_y;
       target_grid_cell = make_pair(start_grid_x, start_grid_y);
-      addGridCellToPath(start_grid_x,start_grid_y,testbed);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
+      addGridCellToPath(start_grid_x,start_grid_y);//add the current robot position as target point on first call, on subsequent calls the robot position would already be on the stack from the previous call assuming the function is called only when the robot has reached the next point
       return;//added the first spiral point
     }//first_call
  
@@ -3227,17 +3216,17 @@ void PathPlannerGrid::BrickAndMortar(AprilInterfaceAndVideoCapture &testbed, rob
 }//function
 
 void PathPlannerGrid::BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
-  if(setRobotCellCoordinates(testbed.detections)<0)
+  if(setRobotCellCoordinates()<0)
     return;
   vector<pair<int,int> > incumbent_cells(rcells*ccells);
   int ic_no = 0;
   stack<pair<int,int> > sk;
   sk.push(pair<int,int>(start_grid_x,start_grid_y));
   total_points = 0;
-  world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+  world_grid[start_grid_x][start_grid_y].parent = getParent(ps);
   world_grid[start_grid_x][start_grid_y].steps = 1;//visited
   world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
-  addGridCellToPath(start_grid_x,start_grid_y,testbed);
+  addGridCellToPath(start_grid_x,start_grid_y);
   int ngr,ngc,wall;//neighbor row and column
 
   while(!sk.empty()){
@@ -3274,17 +3263,17 @@ void PathPlannerGrid::BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_p
 }
 
 void PathPlannerGrid::findCoverageLocalNeighborPreference(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps){
-  if(setRobotCellCoordinates(testbed.detections)<0)
+  if(setRobotCellCoordinates()<0)
     return;
   vector<pair<int,int> > incumbent_cells(rcells*ccells);
   int ic_no = 0;
   stack<pair<int,int> > sk;
   sk.push(pair<int,int>(start_grid_x,start_grid_y));
   total_points = 0;
-  world_grid[start_grid_x][start_grid_y].parent = setParentUsingOrientation(ps);
+  world_grid[start_grid_x][start_grid_y].parent = getParent(ps);
   world_grid[start_grid_x][start_grid_y].steps = 1;//visited
   world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
-  addGridCellToPath(start_grid_x,start_grid_y,testbed);
+  addGridCellToPath(start_grid_x,start_grid_y);
   int ngr,ngc;//neighbor row and column
 
   while(!sk.empty()){
@@ -3311,7 +3300,7 @@ void PathPlannerGrid::findCoverageLocalNeighborPreference(AprilInterfaceAndVideo
   }
 }
 void PathPlannerGrid::findCoverageGlobalNeighborPreference(AprilInterfaceAndVideoCapture &testbed){
-  if(setRobotCellCoordinates(testbed.detections)<0)
+  if(setRobotCellCoordinates()<0)
     return;
   vector<pair<int,int> > incumbent_cells(rcells*ccells);
   int ic_no = 0;//points in above vector
@@ -3321,7 +3310,7 @@ void PathPlannerGrid::findCoverageGlobalNeighborPreference(AprilInterfaceAndVide
   //parent remains -1, -1
   world_grid[start_grid_x][start_grid_y].steps = 1;
   world_grid[start_grid_x][start_grid_y].r_id = robot_tag_id;
-  addGridCellToPath(start_grid_x,start_grid_y,testbed);
+  addGridCellToPath(start_grid_x,start_grid_y);
   total_points = 0;
   while(!sk.empty()){
     pair<int,int> t = sk.top();
@@ -3568,7 +3557,7 @@ void PathPlannerUser::drawPath(Mat &image){
 
 
 void PathPlannerGrid::DeadlockReplan(AprilInterfaceAndVideoCapture &testbed, vector<PathPlannerGrid> &bots){
-  if(setRobotCellCoordinates(testbed.detections)<0)//set the start_grid_y, start_grid_x
+  if(setRobotCellCoordinates()<0)//set the start_grid_y, start_grid_x
     return;     
     int i;
     bool empty_neighbor_found = false;
@@ -3811,7 +3800,7 @@ void PathPlannerGrid::defineVoronoiPartition(AprilInterfaceAndVideoCapture &test
   int bots_present_count = bots.size();
   for(int i = 0; i < bots.size(); i++)
   {
-    if(bots[i].setRobotCellCoordinates(testbed.detections)<0)
+    if(bots[i].setRobotCellCoordinates()<0)
     {
       start_cells[i].first = 10000000;//assigning large numbers so that the subsequent manhattan distance is large
       start_cells[i].second = 10000000;

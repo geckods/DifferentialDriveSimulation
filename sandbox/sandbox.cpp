@@ -152,7 +152,7 @@ bool check_collision_possibility(AprilInterfaceAndVideoCapture &testbed, vector<
 		{
 			for(int i = 0; i < bots.size(); i++)
 			{
-				bots[i].plan.setRobotCellCoordinates(testbed.detections);
+				bots[i].plan.setRobotCellCoordinates();
 
 				bots[i].plan.next_target_index = bots[i].plan.index_travelled+1;
 				if(bots[i].plan.next_target_index!=bots[i].plan.path_points.size())
@@ -299,7 +299,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 							}
 							for(int i = 0; i < bots.size(); i++)
 							{				    	
-								bots[i].plan.addGridCellToPath(start_r[i], start_c[i], testbed);
+								bots[i].plan.addGridCellToPath(start_r[i], start_c[i]);
 								bots[i].plan.world_grid[start_r[i]][start_c[i]].steps = 1;      	
 								bots[i].pose.x = start_r[i];
 								bots[i].pose.y = start_c[i];
@@ -480,7 +480,7 @@ void getSimulatioResults(int number_of_maps, int number_of_trials, int number_of
 
 
 
-					bots[0].plan.drawGrid(image, planners);
+					bots[0].plan.drawGrid(image);
 					for(int i = 0;i<bots.size();i++){      	
 						bots[i].plan.drawPath(image);        
 					}
@@ -1626,7 +1626,7 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 										}		
 									}								    		
 
-									bots[i].plan.addGridCellToPath(start_r[i], start_c[i], testbed);
+									bots[i].plan.addGridCellToPath(start_r[i], start_c[i]);
 									bots[i].plan.world_grid[start_r[i]][start_c[i]].steps = 1;      	
 									bots[i].pose.x = start_r[i];
 									bots[i].pose.y = start_c[i];
@@ -1808,7 +1808,7 @@ void getSimulatioResults2(int number_of_maps, int number_of_trials, int number_o
 
 
 							
-							//bots[0].plan.drawGrid(image, planners);
+							//bots[0].plan.drawGrid(image);
 							//for(int i = 0;i<bots.size();i++){      	
 							//    bots[i].plan.drawPath(image);        
 							//}
@@ -2728,7 +2728,7 @@ int main(int argc, char* argv[]) {
 			c = rand()%bots[0].plan.ccells;
 		}
 		//bots[i].plan.path_points.push_back(pt(r, c));
-		bots[i].plan.addGridCellToPath(r, c, testbed);
+		bots[i].plan.addGridCellToPath(r, c);
 		bots[i].plan.world_grid[r][c].steps = 1;      	
 		bots[i].pose.x = r{
 ;
@@ -2754,7 +2754,7 @@ int main(int argc, char* argv[]) {
 					c = rand()%bots[i].plan.ccells;
 				}
 		//bots[i].plan.path_points.push_back(pt(r, c));
-				bots[i].plan.addGridCellToPath(r, c, testbed);
+				bots[i].plan.addGridCellToPath(r, c);
 				bots[i].plan.world_grid[r][c].steps = 1;      	
 				bots[i].pose.x = r;
 				bots[i].pose.y = c;
@@ -3120,7 +3120,7 @@ int main(int argc, char* argv[]) {
 	//cv::waitKey(0);
 
 	
-	bots[0].plan.drawGrid(image, planners);
+	bots[0].plan.drawGrid(image);
 
 	for(int i = 0;i<bots.size();i++){      	
 		bots[i].plan.drawPath(image);        

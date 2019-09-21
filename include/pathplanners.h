@@ -144,28 +144,70 @@ class PathPlannerGrid{
       return *this;
     }
     double distance(double x1,double y1,double x2,double y2);
+	//function computes the distance between the points (x1,y1) and (x2,y2).
+
     void shareMap(AprilInterfaceAndVideoCapture &testbed, vector<PathPlannerGrid> &bots);
-    void initializeLocalPreferenceMatrix();
-    //invert visitable and non visitable cells
-    void gridInversion(const PathPlannerGrid &planner,int rid);
-    void addPoint(int ind,int px, int py, int x,int y);
-    //criteria based on which to decide whether cell is empty
-    bool isEmpty(int r,int c);
-    bool isFellowAgent(int x,int y,std::vector<AprilTags::TagDetection> &detections);
-    bool pixelIsInsideTag(int x,int y,std::vector<AprilTags::TagDetection> &detections,int ind);
-    int setRobotCellCoordinates(std::vector<AprilTags::TagDetection> &detections);
+    // Iterates through every bot, for each bot, iterates through entire grid and initialises the world_grid flags of every bot.
+
+	void initializeLocalPreferenceMatrix();
+    //The Local preference matrix is a 3-d matrix of pairs called aj, which is defined in PathPlannerGrid. It is supposed to store the local preferences depending on current place and parent place.
+	// The function initializes only 16 pairs out of the 36 possible pairs.
+	// What we've understood from this function. The last index of the three seems to be a direction that you are facing in, in which (U,D,L,R) is (1,2,3,0) or (3,0,2,1)
+	// The first two indexes probably denote the intended direction of movement: [0,1,2] representing up/none/down in the first index and [0,1,2] representing left,none,right in the second index. 
+
+    void initializeBactrackSearchMatrix();//to initialize the matrix which help in backtrack search, namely blockedcellcheck
+	// initialises a matrix of size (3,3,2,3) called blockedcellcheck.
+	// The first two indices behave identically to the array aj, described in initializeLocalPreferenceMatrix().
+	// The third index denotes whether we are checking blocked cells to the left(1) or right(0).
+	// The last index denotes which cell it is checking around it.
+	// Again, this does not initialise the entire matrix.
+ 
+    void gridInversion(const PathPlannerGrid &planner);
+    // Inverts the visitable/unvisitable cells of robot denoted in the planner.
+
+    void addPoint(int ind, int px, int py, int x, int y);
+    // Adds a point to the path at index ind. Adds (x,y) to path and (px,py) to pixel path. Expands these vectors if required. 
+
+    bool isEmpty(int r, int c);
+    // Checks if cell at (r,c) is out of bounds or empty.
+
+    bool isFellowAgent(int x, int y, std::vector<AprilTags::TagDetection> detections);
+    // Checks if (x,y) is in any Tag. Basically just calls the lower function on many indices.
+
+    bool pixelIsInsideTag(int x, int y, AprilTags::TagDetection detection);
+    // Checks if (x,y) is in a Tag.
+
+    int setRobotCellCoordinates();
+    // Sets start_grid_x and start_grid_y.
+
     int setGoalCellCoordinates(std::vector<AprilTags::TagDetection> &detections);
-    void drawGrid(cv::Mat &image, vector<PathPlannerGrid> &bots);
-    //image rows and columns are provided
-    void initializeGrid(int r,int c);
-    //check for obstacles but excludes the black pixels obtained from apriltags
+    // Sets goal_grid_x and goal_grid_y
+
+    void drawGrid(cv::Mat &image);
+    // Draws the grid.
+
+    void initializeGrid(int r, int c);
+    // Takes in no. of rows and columns, initialises some global variables (rcell,ccell) and the grid.
+
     void overlayGrid(std::vector<AprilTags::TagDetection> &detections,cv::Mat &grayImage);
+    // Overlays GrayImage onto the world_grid. 
+
+
+    std::pair<int,int> getParent(robot_pose &ps);
+    // Gets the x,y value for the parent after checking the orientation of the bot.
+
+    void addGridCellToPath(int r, int c);
+    // Wrapper around addPoint. Computes the pixel values and calls addPoint, which adds the point to the path.
+
+    bool isBlocked(int ngr, int ngc);
+    // Checks if a cell (ngr,ngc) is blocked. I don't understand this function.
+
+    int getWallReference(int r,int c,int pr, int pc);
+    // Returns 1 if wall on right, 2 if on left or front, -1 otherwise.
+
     //find shortest traversal,populate path_points
     void findshortest(AprilInterfaceAndVideoCapture &testbed);
-    std::pair<int,int> setParentUsingOrientation(robot_pose &ps);
-    void addGridCellToPath(int r,int c,AprilInterfaceAndVideoCapture &testbed);
-    bool isBlocked(int ngr, int ngc);
-    int getWallReference(int r,int c,int pr, int pc);
+    
     void addBacktrackPointToStackAndPath(std::stack<std::pair<int,int> > &sk,std::vector<std::pair<int,int> > &incumbent_cells,int &ic_no,int ngr, int ngc,std::pair<int,int> &t,AprilInterfaceAndVideoCapture &testbed);
     void BSACoverage(AprilInterfaceAndVideoCapture &testbed,robot_pose &ps);
     int backtrackSimulateBid(std::pair<int,int> target,AprilInterfaceAndVideoCapture &testbed);
@@ -180,7 +222,6 @@ class PathPlannerGrid{
     bool bactrackValidityForBSA_CM(pair <int, int> t, int nx, int ny, int j);
     bool bactrackValidityForBoB(pair <int, int> t, int nx, int ny, int j);
     void SSB(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots);
-    void initializeBactrackSearchMatrix();//to initialize the matrix which help in backtrack search, namely blockedcellcheck
     void BoustrophedonMotionWithUpdatedBactrackSelection(AprilInterfaceAndVideoCapture &testbed, robot_pose &ps, double reach_distance, vector<PathPlannerGrid> &bots);
     int backtrackSimulateBidForBoustrophedonMotion(pair<int,int> target,AprilInterfaceAndVideoCapture &testbed);
     void BoustrophedonMotionSearchForBTAmongstUEV(AprilInterfaceAndVideoCapture &testbed, vector<PathPlannerGrid> &bots, std::vector<std::pair<int,int> > &incumbent_cells, int ic_no, std::stack<std::pair<int,int> > &sk);

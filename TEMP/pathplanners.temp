@@ -3,39 +3,6 @@
 class PathPlannerGrid;
 class PathPlannerUser;
 
-
-//pathplanners.cpp
-double PathPlannerGrid::distance(double x1,double y1,double x2,double y2);
-//function computes the distance between the points (x1,y1) and (x2,y2).
-
-void PathPlannerGrid::initializeLocalPreferenceMatrix();
-//The Local preference matrix is a 3-d matrix of pairs called aj, which is defined in PathPlannerGrid. It is supposed to store the local preferences depending on current place and parent place.
-// The function initializes only 16 pairs out of the 36 possible pairs.
-// What we've understood from this function. The last index of the three seems to be a direction that you are facing in, in which (U,D,L,R) is (1,2,3,0) or (3,0,2,1)
-// The first two indexes probably denote the intended direction of movement: [0,1,2] representing up/none/down in the first index and [0,1,2] representing left,none,right in the second index. 
-
-void PathPlannerGrid::initializeBactrackSearchMatrix();
-// initialises a matrix of size (3,3,2,3) called blockedcellcheck.
-// The first two indices behave identically to the array aj, described in initializeLocalPreferenceMatrix().
-// The third index denotes whether we are checking blocked cells to the left(1) or right(0).
-// The last index denotes which cell it is checking around it.
-// Again, this does not initialise the entire matrix.
-
-void PathPlannerGrid::shareMap(AprilInterfaceAndVideoCapture &testbed, vector<PathPlannerGrid> &bots);
-// Iterates through every bot, for each bot, iterates through entire grid and initialises the world_grid flags of every bot.
-
-void PathPlannerGrid::gridInversion(const PathPlannerGrid &planner,int rid);
-// Inverts the visitable/unvisitable cells of robot denoted in the planner. The rid is redundant in the current implementation.  
-
-void PathPlannerGrid::addPoint(int ind,int px, int py, int x, int y);
-bool PathPlannerGrid::isEmpty(int r,int c);
-bool PathPlannerGrid::pixelIsInsideTag(int x,int y,vector<AprilTags::TagDetection> &detections,int ind);
-int PathPlannerGrid::setRobotCellCoordinates(vector<AprilTags::TagDetection> &detections);
-int PathPlannerGrid::setGoalCellCoordinates(vector<AprilTags::TagDetection> &detections);
-void PathPlannerGrid::drawGrid(Mat &image, vector<PathPlannerGrid> &bots);
-void PathPlannerGrid::initializeGrid(int r,int c);
-pair<int,int> PathPlannerGrid::setParentUsingOrientation(robot_pose &ps);
-void PathPlannerGrid::addGridCellToPath(int r,int c,AprilInterfaceAndVideoCapture &testbed);
 bool PathPlannerGrid::isBlocked(int ngr, int ngc);
 int PathPlannerGrid::getWallReference(int r,int c,int pr, int pc);
 void PathPlannerGrid::findshortest(AprilInterfaceAndVideoCapture &testbed);
